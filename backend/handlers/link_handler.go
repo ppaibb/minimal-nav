@@ -53,6 +53,42 @@ func CreateLink(c *gin.Context) {
 	Success(c, input)
 }
 
+// UpdateLink 更新导航链接信息
+func UpdateLink(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		Error(c, 400, "无效的 ID 参数")
+		return
+	}
+
+	var existing models.Link
+	if err := db.DB.First(&existing, id).Error; err != nil {
+		Error(c, 404, "未找到该链接")
+		return
+	}
+
+	var input models.Link
+	if err := c.ShouldBindJSON(&input); err != nil {
+		Error(c, 400, "请求参数错误: "+err.Error())
+		return
+	}
+
+	existing.Title = input.Title
+	existing.URL = input.URL
+	if input.Category != "" {
+		existing.Category = input.Category
+	}
+	existing.Icon = input.Icon
+
+	if err := db.DB.Save(&existing).Error; err != nil {
+		Error(c, 500, "更新链接失败: "+err.Error())
+		return
+	}
+
+	Success(c, existing)
+}
+
 // DeleteLink 删除指定 ID 的链接
 func DeleteLink(c *gin.Context) {
 	idParam := c.Param("id")

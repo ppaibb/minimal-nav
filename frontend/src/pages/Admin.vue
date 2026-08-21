@@ -30,6 +30,24 @@ const faviconLoading = ref(false)
 const pingLoading = ref(false)
 const pingResults = ref<Record<number, { healthy: boolean; latency_ms: number; status_code: number; error: string }>>({})
 
+// ✏️ 编辑模态框状态
+const isEditLinkModalOpen = ref(false)
+const editingLink = ref<{ id: number; title: string; url: string; category: string; icon: string }>({
+  id: 0,
+  title: '',
+  url: '',
+  category: '',
+  icon: ''
+})
+const editFaviconLoading = ref(false)
+
+const isEditAnnModalOpen = ref(false)
+const editingAnnouncement = ref<{ id: number; content: string; is_active: boolean }>({
+  id: 0,
+  content: '',
+  is_active: true
+})
+
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const jsonInputRef = ref<HTMLInputElement | null>(null)
 
@@ -40,10 +58,9 @@ const showMessage = (text: string, type: 'success' | 'error' = 'success') => {
   }, 3500)
 }
 
-// 获取 Auth Token
 const getToken = () => localStorage.getItem('admin_token') || ''
 
-// 检查登录状态
+// 检查登录
 const checkAuth = async () => {
   const token = getToken()
   if (!token) {
@@ -70,10 +87,10 @@ const checkAuth = async () => {
   }
 }
 
-// 登录口令解锁
+// 登录
 const handleLogin = async () => {
   if (!inputPassword.value) {
-    authError.value = '请输入口令'
+    authError.value = '请输入管理员口令'
     return
   }
   authError.value = ''
@@ -94,18 +111,18 @@ const handleLogin = async () => {
       authError.value = data.msg || '口令错误，请重试'
     }
   } catch {
-    authError.value = '网络错误，请稍后重试'
+    authError.value = '网络连接错误'
   }
 }
 
-// 退出登录
+// 退出
 const handleLogout = () => {
   localStorage.removeItem('admin_token')
   isAuthenticated.value = false
-  showMessage('已退出管理后台')
+  showMessage('已退出管理权限')
 }
 
-// 刷新数据
+// 加载数据
 const loadData = async () => {
   try {
     const [linksRes, annRes] = await Promise.all([
@@ -125,26 +142,34 @@ const loadData = async () => {
   }
 }
 
-// 自动提取目标网址 Favicon
-const handleAutoFavicon = async () => {
-  if (!newLink.value.url) {
+// 自动提取 Favicon
+const handleAutoFavicon = async (isEditing = false) => {
+  const targetUrl = isEditing ? editingLink.value.url : newLink.value.url
+  if (!targetUrl) {
     showMessage('请先输入目标网址', 'error')
     return
   }
-  faviconLoading.value = true
+  if (isEditing) editFaviconLoading.value = true
+  else faviconLoading.value = true
+
   try {
-    const res = await fetch(`/api/tools/favicon?url=${encodeURIComponent(newLink.value.url)}`)
+    const res = await fetch(`/api/tools/favicon?url=${encodeURIComponent(targetUrl)}`)
     if (res.ok) {
       const data = await res.json()
       if (data.code === 0 && data.data?.favicon) {
-        newLink.value.icon = data.data.favicon
-        showMessage('已自动获取并匹配高清 Favicon 图标')
+        if (isEditing) {
+          editingLink.value.icon = data.data.favicon
+        } else {
+          newLink.value.icon = data.data.favicon
+        }
+        showMessage('已自动获取并匹配高清 Favicon')
       }
     }
   } catch {
-    showMessage('自动获取图标失败', 'error')
+    showMessage('获取图标失败', 'error')
   } finally {
-    faviconLoading.value = false
+    if (isEditing) editFaviconLoading.value = false
+    else faviconLoading.value = false
   }
 }
 
@@ -165,7 +190,7 @@ const handleAddLink = async () => {
     })
     const data = await res.json()
     if (data.code === 0) {
-      showMessage('链接添加成功')
+      showMessage('导航链接添加成功')
       newLink.value = { title: '', url: '', category: '开发协作', icon: '' }
       loadData()
     } else {
@@ -173,6 +198,46 @@ const handleAddLink = async () => {
     }
   } catch {
     showMessage('网络错误', 'error')
+  }
+}
+
+// 打开编辑链接 Dialog
+const openEditLinkModal = (link: LinkItem) => {
+  editingLink.value = {
+    id: link.id,
+    title: link.title,
+    url: link.url,
+    category: link.category || '默认',
+    icon: link.icon || ''
+  }
+  isEditLinkModalOpen.value = true
+}
+
+// 保存编辑链接
+const handleSaveEditLink = async () => {
+  if (!editingLink.value.title || !editingLink.value.url) {
+    showMessage('标题与网址不能为空', 'error')
+    return
+  }
+  try {
+    const res = await fetch(`/api/links/${editingLink.value.id}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Admin-Token': getToken()
+      },
+      body: JSON.stringify(editingLink.value),
+    })
+    const data = await res.json()
+    if (data.code === 0) {
+      showMessage('导航链接已更新')
+      isEditLinkModalOpen.value = false
+      loadData()
+    } else {
+      showMessage(data.msg || '更新失败', 'error')
+    }
+  } catch {
+    showMessage('保存失败', 'error')
   }
 }
 
@@ -221,6 +286,44 @@ const handleAddAnnouncement = async () => {
     }
   } catch {
     showMessage('网络错误', 'error')
+  }
+}
+
+// 打开编辑公告 Dialog
+const openEditAnnModal = (item: AnnouncementItem) => {
+  editingAnnouncement.value = {
+    id: item.id,
+    content: item.content,
+    is_active: item.is_active
+  }
+  isEditAnnModalOpen.value = true
+}
+
+// 保存编辑公告
+const handleSaveEditAnnouncement = async () => {
+  if (!editingAnnouncement.value.content) {
+    showMessage('公告内容不能为空', 'error')
+    return
+  }
+  try {
+    const res = await fetch(`/api/announcements/${editingAnnouncement.value.id}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Admin-Token': getToken()
+      },
+      body: JSON.stringify(editingAnnouncement.value),
+    })
+    const data = await res.json()
+    if (data.code === 0) {
+      showMessage('公告内容已更新')
+      isEditAnnModalOpen.value = false
+      loadData()
+    } else {
+      showMessage(data.msg || '更新失败', 'error')
+    }
+  } catch {
+    showMessage('保存失败', 'error')
   }
 }
 
@@ -291,7 +394,7 @@ const handleExportBackup = () => {
   window.open(`/api/backup/export?token=${getToken()}`, '_blank')
 }
 
-// 上传 Chrome 书签文件
+// 上传 Chrome 书签
 const handleBookmarkFileChange = async (e: Event) => {
   const target = e.target as HTMLInputElement
   if (!target.files || target.files.length === 0) return
@@ -308,7 +411,7 @@ const handleBookmarkFileChange = async (e: Event) => {
     })
     const data = await res.json()
     if (data.code === 0) {
-      showMessage(`书签导入成功，共批量录入 ${data.data.imported_count} 条导航链接！`)
+      showMessage(`书签导入成功，已批量录入 ${data.data.imported_count} 条导航`)
       loadData()
     } else {
       showMessage(data.msg || '书签解析导入失败', 'error')
@@ -320,7 +423,7 @@ const handleBookmarkFileChange = async (e: Event) => {
   }
 }
 
-// 上传 JSON 备份恢复
+// 上传 JSON 备份
 const handleJsonBackupChange = async (e: Event) => {
   const target = e.target as HTMLInputElement
   if (!target.files || target.files.length === 0) return
@@ -345,7 +448,7 @@ const handleJsonBackupChange = async (e: Event) => {
       })
       const data = await res.json()
       if (data.code === 0) {
-        showMessage(`JSON 备份还原成功！恢复了 ${data.data.imported_links} 条链接`)
+        showMessage(`JSON 恢复成功！还原了 ${data.data.imported_links} 条链接`)
         loadData()
       } else {
         showMessage(data.msg || '恢复失败', 'error')
@@ -365,39 +468,32 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-10 max-w-5xl mx-auto">
-    <!-- 🔒 未登录状态：口令解锁面板 -->
-    <div v-if="!isAuthenticated" class="py-12 flex items-center justify-center">
-      <div class="w-full max-w-md p-8 rounded-xl border border-border bg-card shadow-lg space-y-6 text-center">
-        <!-- 锁图标 -->
-        <div class="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center mx-auto text-foreground border border-border/60">
-          <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-            <path stroke-linecap="round" stroke-linejoin="round" d="M7 11V7a5 5 0 0110 0v4" />
-          </svg>
+  <div class="space-y-8 max-w-6xl mx-auto">
+    <!-- 🔒 认证解锁面板 (正统 shadcn Card 规范) -->
+    <div v-if="!isAuthenticated" class="py-16 flex items-center justify-center">
+      <div class="w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-sm space-y-6">
+        <div class="space-y-1.5 text-center">
+          <h2 class="text-xl font-semibold tracking-tight text-foreground">管理员验证</h2>
+          <p class="text-xs text-muted-foreground">请输入管理员口令解锁后台配置权限 (默认: admin123)</p>
         </div>
 
-        <div class="space-y-1.5">
-          <h2 class="text-xl font-bold tracking-tight text-foreground">管理后台口令验证</h2>
-          <p class="text-xs text-muted-foreground">请输入管理员口令解锁导航链接与公告维护权限 (默认: admin123)</p>
-        </div>
-
-        <form @submit.prevent="handleLogin" class="space-y-4 text-left">
+        <form @submit.prevent="handleLogin" class="space-y-4">
           <div class="space-y-1.5">
+            <label class="text-xs font-medium text-muted-foreground">管理口令</label>
             <input 
               v-model="inputPassword"
               type="password"
-              placeholder="输入管理员口令..." 
-              class="w-full h-11 bg-background border border-border text-sm rounded-lg px-3.5 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground"
+              placeholder="••••••••" 
+              class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               autofocus
               required
             />
-            <p v-if="authError" class="text-xs text-rose-500 font-medium">{{ authError }}</p>
+            <p v-if="authError" class="text-xs text-destructive font-medium">{{ authError }}</p>
           </div>
 
           <button 
             type="submit" 
-            class="w-full h-11 bg-foreground text-background hover:opacity-90 rounded-lg text-sm font-semibold transition-opacity cursor-pointer shadow-sm"
+            class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring h-9 w-full bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 cursor-pointer"
           >
             解锁控制台
           </button>
@@ -405,25 +501,25 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 🔓 已解锁管理状态：完整控制台 -->
-    <div v-else class="space-y-10">
-      <!-- 顶部标题与控制栏 -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-6">
+    <!-- 🔓 已解锁管理状态 (完全符合 shadcn-admin 直线排版) -->
+    <div v-else class="space-y-6">
+      <!-- 页面 Header: 标题 + Tabs 切换 + 退出按钮 -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
-          <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">后台资源管理</h2>
-          <p class="text-sm text-muted-foreground mt-1">配置团队导航链接、公告发布、健康探测与数据备份</p>
+          <h2 class="text-2xl font-bold tracking-tight text-foreground">后台资源管理</h2>
+          <p class="text-xs text-muted-foreground mt-0.5">维护团队内部索引、公告通知、健康度探测及数据备份</p>
         </div>
 
-        <div class="flex items-center space-x-3 self-start sm:self-auto">
-          <!-- 选项卡切换 -->
-          <div class="flex items-center space-x-1 bg-secondary/60 p-1 rounded-lg border border-border/50">
+        <div class="flex items-center space-x-3">
+          <!-- 正统 shadcn TabsList -->
+          <div class="inline-flex h-9 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
             <button
               @click="activeTab = 'links'"
               :class="[
-                'text-xs sm:text-sm px-3.5 py-1.5 rounded-md font-medium transition-all cursor-pointer',
-                activeTab === 'links' 
-                  ? 'bg-card text-foreground shadow-xs font-semibold' 
-                  : 'text-muted-foreground hover:text-foreground'
+                'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-xs font-medium ring-offset-background transition-all focus-visible:outline-none cursor-pointer',
+                activeTab === 'links'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'hover:text-foreground'
               ]"
             >
               导航链接 ({{ links.length }})
@@ -431,31 +527,31 @@ onMounted(() => {
             <button
               @click="activeTab = 'announcements'"
               :class="[
-                'text-xs sm:text-sm px-3.5 py-1.5 rounded-md font-medium transition-all cursor-pointer',
-                activeTab === 'announcements' 
-                  ? 'bg-card text-foreground shadow-xs font-semibold' 
-                  : 'text-muted-foreground hover:text-foreground'
+                'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-xs font-medium ring-offset-background transition-all focus-visible:outline-none cursor-pointer',
+                activeTab === 'announcements'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'hover:text-foreground'
               ]"
             >
-              系统公告 ({{ announcements.length }})
+              公告通知 ({{ announcements.length }})
             </button>
             <button
               @click="activeTab = 'backup'"
               :class="[
-                'text-xs sm:text-sm px-3.5 py-1.5 rounded-md font-medium transition-all cursor-pointer',
-                activeTab === 'backup' 
-                  ? 'bg-card text-foreground shadow-xs font-semibold' 
-                  : 'text-muted-foreground hover:text-foreground'
+                'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-xs font-medium ring-offset-background transition-all focus-visible:outline-none cursor-pointer',
+                activeTab === 'backup'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'hover:text-foreground'
               ]"
             >
-              备份与导入
+              数据备份与导入
             </button>
           </div>
 
-          <!-- 退出登录按钮 -->
+          <!-- 退出按钮 -->
           <button 
             @click="handleLogout"
-            class="text-xs text-muted-foreground hover:text-rose-500 border border-border/80 px-2.5 py-1.5 rounded-md hover:bg-rose-500/10 transition-colors cursor-pointer"
+            class="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 transition-colors cursor-pointer"
             title="锁定管理后台"
           >
             退出
@@ -463,141 +559,159 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 全局提示条 -->
+      <!-- 全局消息提示条 -->
       <div 
         v-if="message" 
         :class="[
-          'px-4 py-2.5 text-sm rounded-lg border transition-all duration-200 shadow-sm flex items-center space-x-2',
+          'px-4 py-2 text-xs font-medium rounded-md border transition-all flex items-center justify-between',
           message.type === 'success' 
-            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-            : 'bg-rose-500/10 border-rose-500/30 text-rose-500'
+            ? 'bg-zinc-100 dark:bg-zinc-900 border-border text-foreground'
+            : 'bg-destructive/10 border-destructive/30 text-destructive'
         ]"
       >
         <span>{{ message.text }}</span>
+        <button @click="message = null" class="text-muted-foreground hover:text-foreground">✕</button>
       </div>
 
-      <!-- 1. 链接管理面板 -->
-      <div v-if="activeTab === 'links'" class="space-y-8">
-        <!-- 新增链接表单 -->
-        <form @submit.prevent="handleAddLink" class="p-6 rounded-xl border border-border bg-card shadow-sm space-y-5">
+      <!-- 1. 导航链接管理 -->
+      <div v-if="activeTab === 'links'" class="space-y-6">
+        <!-- 录入新链接表单 (shadcn 规范直线表单) -->
+        <div class="rounded-lg border border-border bg-card p-5 space-y-4">
           <div class="flex items-center justify-between">
-            <h3 class="text-base font-semibold text-foreground tracking-tight">添加新导航链接</h3>
-            <span class="text-xs text-muted-foreground">支持自动抓取 Favicon 网站图标</span>
+            <h3 class="text-sm font-semibold text-foreground">录入新导航链接</h3>
+            <span class="text-xs text-muted-foreground">输入网址将自动探测并绑定高清 Favicon</span>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="space-y-1.5">
-              <label class="text-xs font-medium text-muted-foreground">链接名称</label>
-              <input 
-                v-model="newLink.title" 
-                placeholder="例如: Figma, Linear, GitHub" 
-                class="w-full h-10 bg-background border border-border text-sm rounded-lg px-3 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground"
-                required
-              />
-            </div>
-            <div class="space-y-1.5">
-              <div class="flex items-center justify-between">
-                <label class="text-xs font-medium text-muted-foreground">目标网址</label>
-                <button
-                  type="button"
-                  @click="handleAutoFavicon"
-                  class="text-[11px] font-mono text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                >
-                  {{ faviconLoading ? '抓取中...' : '自动抓取图标' }}
-                </button>
+          <form @submit.prevent="handleAddLink" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="space-y-1">
+                <label class="text-xs font-medium text-muted-foreground">链接标题</label>
+                <input 
+                  v-model="newLink.title" 
+                  placeholder="例如: GitHub, Figma" 
+                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  required
+                />
               </div>
-              <input 
-                v-model="newLink.url" 
-                placeholder="https://example.com" 
-                class="w-full h-10 bg-background border border-border text-sm rounded-lg px-3 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground"
-                @blur="!newLink.icon && newLink.url && handleAutoFavicon()"
-                required
-              />
+
+              <div class="space-y-1">
+                <div class="flex items-center justify-between">
+                  <label class="text-xs font-medium text-muted-foreground">目标网址</label>
+                  <button
+                    type="button"
+                    @click="handleAutoFavicon(false)"
+                    class="text-[11px] font-mono text-muted-foreground hover:text-foreground cursor-pointer underline"
+                  >
+                    {{ faviconLoading ? '抓取中...' : '嗅探图标' }}
+                  </button>
+                </div>
+                <input 
+                  v-model="newLink.url" 
+                  placeholder="https://example.com" 
+                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  @blur="!newLink.icon && newLink.url && handleAutoFavicon(false)"
+                  required
+                />
+              </div>
+
+              <div class="space-y-1">
+                <label class="text-xs font-medium text-muted-foreground">所属分类</label>
+                <input 
+                  v-model="newLink.category" 
+                  placeholder="例如: 开发协作, 运维部署" 
+                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
             </div>
-            <div class="space-y-1.5">
-              <label class="text-xs font-medium text-muted-foreground">所属分类</label>
-              <input 
-                v-model="newLink.category" 
-                placeholder="例如: 开发协作, 部署运维, 设计资源" 
-                class="w-full h-10 bg-background border border-border text-sm rounded-lg px-3 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground"
-              />
+
+            <!-- 图标与提交 -->
+            <div class="flex items-center justify-between pt-1">
+              <div v-if="newLink.icon" class="flex items-center space-x-2 text-xs text-muted-foreground font-mono">
+                <span>图标:</span>
+                <img :src="newLink.icon" class="w-4 h-4 object-contain" />
+                <span class="truncate max-w-xs">{{ newLink.icon }}</span>
+              </div>
+              <div v-else></div>
+
+              <button 
+                type="submit" 
+                class="inline-flex items-center justify-center rounded-md text-xs sm:text-sm font-medium transition-colors h-9 px-4 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 cursor-pointer"
+              >
+                + 添加链接
+              </button>
             </div>
-          </div>
+          </form>
+        </div>
 
-          <!-- 图标预览槽 -->
-          <div v-if="newLink.icon" class="flex items-center space-x-3 p-2.5 rounded-lg bg-secondary/40 border border-border/50 text-xs">
-            <span class="text-muted-foreground">图标预览:</span>
-            <img :src="newLink.icon" alt="icon" class="w-5 h-5 object-contain" />
-            <span class="font-mono text-muted-foreground truncate max-w-xs">{{ newLink.icon }}</span>
-          </div>
-
-          <div class="flex justify-end pt-1">
-            <button 
-              type="submit" 
-              class="bg-foreground text-background hover:opacity-90 text-sm px-6 py-2 rounded-lg font-medium transition-opacity cursor-pointer shadow-sm"
-            >
-              保存并添加
-            </button>
-          </div>
-        </form>
-
-        <!-- 链接列表与连通性检测 -->
-        <div class="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
-          <div class="px-6 py-4 border-b border-border flex items-center justify-between bg-muted/20">
-            <h3 class="text-sm font-semibold text-foreground">全部链接列表 ({{ links.length }})</h3>
+        <!-- 链接数据表 (正统 shadcn Table 规范) -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/40">
+            <span class="text-xs font-semibold text-foreground">导航链接列表 ({{ links.length }})</span>
+            
             <button
               @click="handleTestAllPing"
               :disabled="pingLoading"
-              class="text-xs border border-border bg-background hover:bg-accent px-3 py-1.5 rounded-md font-mono flex items-center space-x-1.5 transition-colors cursor-pointer"
+              class="inline-flex items-center space-x-1.5 text-xs border border-input bg-background hover:bg-accent px-2.5 py-1 rounded-md font-mono transition-colors cursor-pointer"
             >
-              <span class="w-2 h-2 rounded-full" :class="pingLoading ? 'bg-amber-500 animate-spin' : 'bg-emerald-500'"></span>
-              <span>{{ pingLoading ? '正在全量探测...' : '一键探测连通性' }}</span>
+              <span class="w-1.5 h-1.5 rounded-full" :class="pingLoading ? 'bg-amber-500 animate-spin' : 'bg-emerald-500'"></span>
+              <span>{{ pingLoading ? '正在测试...' : '探测全部连通性' }}</span>
             </button>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm">
-              <thead class="bg-muted/40 text-xs font-semibold text-muted-foreground border-b border-border">
-                <tr>
-                  <th class="px-6 py-3">图标 / 标题</th>
-                  <th class="px-6 py-3">目标网址</th>
-                  <th class="px-6 py-3">分类</th>
-                  <th class="px-6 py-3">连通健康度</th>
-                  <th class="px-6 py-3 text-right">操作</th>
+          <div class="relative w-full overflow-auto">
+            <table class="w-full caption-bottom text-xs">
+              <thead class="[&_tr]:border-b border-border bg-muted/20">
+                <tr class="border-b transition-colors">
+                  <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">图标 / 标题</th>
+                  <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">目标网址</th>
+                  <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">分类</th>
+                  <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">健康连通度</th>
+                  <th class="h-10 px-4 text-right align-middle font-medium text-muted-foreground">操作</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-border">
-                <tr v-for="link in links" :key="link.id" class="hover:bg-muted/30 transition-colors">
-                  <td class="px-6 py-3.5 font-medium text-foreground flex items-center space-x-3">
-                    <div class="w-7 h-7 rounded bg-secondary flex items-center justify-center border border-border/40 shrink-0 overflow-hidden">
-                      <img v-if="link.icon" :src="link.icon" class="w-4 h-4 object-contain" />
-                      <span v-else class="text-xs font-bold text-foreground">{{ link.title.charAt(0).toUpperCase() }}</span>
+              <tbody class="[&_tr:last-child]:border-0 divide-y divide-border">
+                <tr v-for="link in links" :key="link.id" class="border-b transition-colors hover:bg-muted/50">
+                  <td class="p-4 align-middle font-medium text-foreground flex items-center space-x-2.5">
+                    <div class="w-6 h-6 rounded bg-secondary flex items-center justify-center border border-border/40 shrink-0 overflow-hidden">
+                      <img v-if="link.icon" :src="link.icon" class="w-3.5 h-3.5 object-contain" />
+                      <span v-else class="text-[10px] font-bold text-foreground">{{ link.title.charAt(0).toUpperCase() }}</span>
                     </div>
                     <span>{{ link.title }}</span>
                   </td>
-                  <td class="px-6 py-3.5 font-mono text-xs text-muted-foreground truncate max-w-xs">
+
+                  <td class="p-4 align-middle font-mono text-muted-foreground truncate max-w-xs">
                     <a :href="link.url" target="_blank" class="hover:underline hover:text-foreground">
                       {{ link.url }}
                     </a>
                   </td>
-                  <td class="px-6 py-3.5">
-                    <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-secondary text-muted-foreground">
+
+                  <td class="p-4 align-middle">
+                    <span class="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                       {{ link.category || '默认' }}
                     </span>
                   </td>
-                  <td class="px-6 py-3.5 font-mono text-xs">
+
+                  <td class="p-4 align-middle font-mono">
                     <span v-if="pingResults[link.id]" class="inline-flex items-center space-x-1.5">
-                      <span class="w-2 h-2 rounded-full" :class="pingResults[link.id].healthy ? 'bg-emerald-500' : 'bg-rose-500'"></span>
-                      <span :class="pingResults[link.id].healthy ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'">
-                        {{ pingResults[link.id].healthy ? `${pingResults[link.id].latency_ms}ms (HTTP ${pingResults[link.id].status_code})` : '不可达' }}
+                      <span class="w-1.5 h-1.5 rounded-full" :class="pingResults[link.id].healthy ? 'bg-emerald-500' : 'bg-rose-500'"></span>
+                      <span :class="pingResults[link.id].healthy ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'">
+                        {{ pingResults[link.id].healthy ? `${pingResults[link.id].latency_ms}ms (HTTP ${pingResults[link.id].status_code})` : '超时不可达' }}
                       </span>
                     </span>
                     <span v-else class="text-muted-foreground/60">未探测</span>
                   </td>
-                  <td class="px-6 py-3.5 text-right">
+
+                  <!-- ✏️ 操作区：编辑 + 删除 -->
+                  <td class="p-4 align-middle text-right space-x-2">
+                    <button 
+                      @click="openEditLinkModal(link)"
+                      class="text-xs font-medium text-foreground hover:underline cursor-pointer"
+                    >
+                      编辑
+                    </button>
                     <button 
                       @click="handleDeleteLink(link.id)"
-                      class="text-xs text-rose-500 hover:text-rose-700 hover:underline cursor-pointer font-medium"
+                      class="text-xs font-medium text-destructive hover:underline cursor-pointer"
                     >
                       删除
                     </button>
@@ -609,52 +723,54 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 2. 系统公告管理面板 -->
-      <div v-if="activeTab === 'announcements'" class="space-y-8">
+      <!-- 2. 系统公告通知管理 -->
+      <div v-if="activeTab === 'announcements'" class="space-y-6">
         <!-- 发布公告表单 -->
-        <form @submit.prevent="handleAddAnnouncement" class="p-6 rounded-xl border border-border bg-card shadow-sm space-y-4">
-          <h3 class="text-base font-semibold text-foreground tracking-tight">发布全站系统公告</h3>
+        <div class="rounded-lg border border-border bg-card p-5 space-y-4">
+          <h3 class="text-sm font-semibold text-foreground">发布系统公告</h3>
 
-          <div class="space-y-1.5">
-            <label class="text-xs font-medium text-muted-foreground">公告内容</label>
-            <input 
-              v-model="newAnnouncement.content" 
-              placeholder="例如: 本周六凌晨将进行服务器升级，期间可能出现短暂访问延迟。" 
-              class="w-full h-10 bg-background border border-border text-sm rounded-lg px-3 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground"
-              required
-            />
-          </div>
-
-          <div class="flex items-center justify-between pt-1">
-            <label class="flex items-center space-x-2 text-sm text-muted-foreground cursor-pointer">
+          <form @submit.prevent="handleAddAnnouncement" class="space-y-3">
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-muted-foreground">公告文本内容</label>
               <input 
-                v-model="newAnnouncement.is_active" 
-                type="checkbox" 
-                class="rounded border-border w-4 h-4 text-foreground focus:ring-foreground"
+                v-model="newAnnouncement.content" 
+                placeholder="例如: 全新内部知识库已上线，欢迎团队成员使用与录入文档。" 
+                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                required
               />
-              <span>立即在前台生效展示</span>
-            </label>
+            </div>
 
-            <button 
-              type="submit" 
-              class="bg-foreground text-background hover:opacity-90 text-sm px-6 py-2 rounded-lg font-medium transition-opacity cursor-pointer shadow-sm"
-            >
-              发布公告
-            </button>
+            <div class="flex items-center justify-between pt-1">
+              <label class="flex items-center space-x-2 text-xs text-muted-foreground cursor-pointer">
+                <input 
+                  v-model="newAnnouncement.is_active" 
+                  type="checkbox" 
+                  class="rounded border-input text-foreground focus:ring-ring"
+                />
+                <span>立即在前台首页生效展示</span>
+              </label>
+
+              <button 
+                type="submit" 
+                class="inline-flex items-center justify-center rounded-md text-xs sm:text-sm font-medium transition-colors h-9 px-4 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 cursor-pointer"
+              >
+                + 发布公告
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 公告列表 (Table 规范) -->
+        <div class="rounded-lg border border-border bg-card overflow-hidden">
+          <div class="px-4 py-3 border-b border-border bg-muted/40">
+            <span class="text-xs font-semibold text-foreground">公告记录 ({{ announcements.length }})</span>
           </div>
-        </form>
 
-        <!-- 公告列表 -->
-        <div class="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
-          <div class="px-6 py-4 border-b border-border bg-muted/20">
-            <h3 class="text-sm font-semibold text-foreground">全部公告 ({{ announcements.length }})</h3>
-          </div>
-
-          <div class="divide-y divide-border">
+          <div class="divide-y divide-border text-xs">
             <div 
               v-for="item in announcements" 
               :key="item.id" 
-              class="p-5 flex items-center justify-between gap-4 hover:bg-muted/20 transition-colors"
+              class="p-4 flex items-center justify-between gap-4 hover:bg-muted/40 transition-colors"
             >
               <div class="space-y-1">
                 <div class="flex items-center space-x-2">
@@ -664,23 +780,30 @@ onMounted(() => {
                       item.is_active ? 'bg-emerald-500' : 'bg-zinc-400'
                     ]"
                   ></span>
-                  <span class="text-xs font-mono text-muted-foreground">
+                  <span class="text-[11px] font-mono text-muted-foreground">
                     {{ item.is_active ? '正在生效' : '已停用' }}
                   </span>
                 </div>
                 <p class="text-sm text-foreground font-medium">{{ item.content }}</p>
               </div>
 
+              <!-- ✏️ 操作：修改 + 启停 + 删除 -->
               <div class="flex items-center space-x-3 shrink-0">
                 <button 
+                  @click="openEditAnnModal(item)"
+                  class="text-xs font-medium text-foreground hover:underline cursor-pointer"
+                >
+                  编辑
+                </button>
+                <button 
                   @click="handleToggleAnnouncement(item.id)"
-                  class="text-xs text-muted-foreground hover:text-foreground border border-border px-3 py-1.5 rounded-md hover:bg-accent transition-colors cursor-pointer"
+                  class="text-xs border border-input rounded px-2 py-1 hover:bg-accent cursor-pointer"
                 >
                   {{ item.is_active ? '停用' : '启用' }}
                 </button>
                 <button 
                   @click="handleDeleteAnnouncement(item.id)"
-                  class="text-xs text-rose-500 hover:text-rose-700 hover:underline cursor-pointer"
+                  class="text-xs font-medium text-destructive hover:underline cursor-pointer"
                 >
                   删除
                 </button>
@@ -692,21 +815,12 @@ onMounted(() => {
 
       <!-- 3. 数据备份与 Chrome 书签导入 -->
       <div v-if="activeTab === 'backup'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Chrome 书签导入 -->
-        <div class="p-6 rounded-xl border border-border bg-card shadow-sm space-y-4">
-          <div class="flex items-center space-x-2.5">
-            <div class="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-foreground">
-              📑
-            </div>
-            <div>
-              <h3 class="text-base font-semibold text-foreground">Chrome / Edge 书签导入</h3>
-              <p class="text-xs text-muted-foreground">自动将书签文件夹解析为导航分类并批量入库</p>
-            </div>
+        <!-- Chrome 书签导入 (shadcn 规范 Card) -->
+        <div class="rounded-lg border border-border bg-card p-5 space-y-3">
+          <div class="space-y-1">
+            <h3 class="text-sm font-semibold text-foreground">Chrome / Edge 书签导入</h3>
+            <p class="text-xs text-muted-foreground">从浏览器书签管理器中导出 HTML 文件，一键批量解析并建立分类索引</p>
           </div>
-
-          <p class="text-xs text-muted-foreground leading-relaxed">
-            在浏览器书签管理器中点击「导出书签」，上传生成的 <code class="font-mono bg-secondary px-1 py-0.5 rounded">.html</code> 文件即可一键批量导入。
-          </p>
 
           <input 
             ref="fileInputRef"
@@ -718,27 +832,18 @@ onMounted(() => {
 
           <button 
             @click="fileInputRef?.click()"
-            class="w-full py-2.5 border border-border bg-background hover:bg-accent text-foreground text-sm font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center space-x-2 shadow-xs"
+            class="w-full inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-background hover:bg-accent h-9 transition-colors cursor-pointer shadow-xs"
           >
-            <span>选择 HTML 书签文件上传</span>
+            选择 .html 书签文件并导入
           </button>
         </div>
 
-        <!-- JSON 备份与还原 -->
-        <div class="p-6 rounded-xl border border-border bg-card shadow-sm space-y-4">
-          <div class="flex items-center space-x-2.5">
-            <div class="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-foreground">
-              💾
-            </div>
-            <div>
-              <h3 class="text-base font-semibold text-foreground">全站数据 JSON 备份与恢复</h3>
-              <p class="text-xs text-muted-foreground">导出完整的链接与公告数据文件，随时跨设备还原</p>
-            </div>
+        <!-- JSON 备份与还原 (shadcn 规范 Card) -->
+        <div class="rounded-lg border border-border bg-card p-5 space-y-3">
+          <div class="space-y-1">
+            <h3 class="text-sm font-semibold text-foreground">全站 JSON 备份与恢复</h3>
+            <p class="text-xs text-muted-foreground">导出完整的链接与公告数据集，支持在任意环境一键导入合并</p>
           </div>
-
-          <p class="text-xs text-muted-foreground leading-relaxed">
-            支持一键下载完整备份 JSON，或上传历史备份文件进行合并恢复。
-          </p>
 
           <input 
             ref="jsonInputRef"
@@ -751,13 +856,13 @@ onMounted(() => {
           <div class="flex items-center space-x-3">
             <button 
               @click="handleExportBackup"
-              class="flex-1 py-2.5 bg-foreground text-background hover:opacity-90 text-sm font-medium rounded-lg transition-opacity cursor-pointer shadow-xs text-center"
+              class="flex-1 inline-flex items-center justify-center rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-9 transition-colors cursor-pointer shadow-xs"
             >
               导出 JSON 备份
             </button>
             <button 
               @click="jsonInputRef?.click()"
-              class="flex-1 py-2.5 border border-border bg-background hover:bg-accent text-foreground text-sm font-medium rounded-lg transition-colors cursor-pointer shadow-xs text-center"
+              class="flex-1 inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-background hover:bg-accent h-9 transition-colors cursor-pointer shadow-xs"
             >
               导入 JSON 恢复
             </button>
@@ -765,5 +870,162 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- 🌟 编辑导航链接 Dialog (纯正 shadcn/ui Dialog 规范) -->
+    <teleport to="body">
+      <transition
+        enter-active-class="transition duration-150 ease-out"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition duration-100 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div 
+          v-if="isEditLinkModalOpen" 
+          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+          @click.self="isEditLinkModalOpen = false"
+        >
+          <div class="w-full max-w-lg rounded-lg border border-border bg-popover text-popover-foreground p-6 shadow-xl space-y-5 animate-in fade-in-0 zoom-in-95 duration-150">
+            <div class="space-y-1.5">
+              <h3 class="text-base font-semibold tracking-tight text-foreground">编辑导航链接</h3>
+              <p class="text-xs text-muted-foreground">修改该链接的标题、目标地址、分类或图标</p>
+            </div>
+
+            <form @submit.prevent="handleSaveEditLink" class="space-y-4">
+              <div class="space-y-1">
+                <label class="text-xs font-medium text-muted-foreground">链接标题</label>
+                <input 
+                  v-model="editingLink.title" 
+                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  required
+                />
+              </div>
+
+              <div class="space-y-1">
+                <div class="flex items-center justify-between">
+                  <label class="text-xs font-medium text-muted-foreground">目标网址</label>
+                  <button
+                    type="button"
+                    @click="handleAutoFavicon(true)"
+                    class="text-[11px] font-mono text-muted-foreground hover:text-foreground cursor-pointer underline"
+                  >
+                    {{ editFaviconLoading ? '抓取中...' : '重新嗅探图标' }}
+                  </button>
+                </div>
+                <input 
+                  v-model="editingLink.url" 
+                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  required
+                />
+              </div>
+
+              <div class="space-y-1">
+                <label class="text-xs font-medium text-muted-foreground">所属分类</label>
+                <input 
+                  v-model="editingLink.category" 
+                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
+
+              <div class="space-y-1">
+                <label class="text-xs font-medium text-muted-foreground">Favicon 图标地址</label>
+                <div class="flex items-center space-x-2">
+                  <input 
+                    v-model="editingLink.icon" 
+                    placeholder="https://..." 
+                    class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs font-mono shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                  <div class="w-9 h-9 rounded bg-secondary flex items-center justify-center border border-border shrink-0 overflow-hidden">
+                    <img v-if="editingLink.icon" :src="editingLink.icon" class="w-4 h-4 object-contain" />
+                    <span v-else class="text-xs font-bold text-foreground">?</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex justify-end space-x-2 pt-2 border-t border-border">
+                <button 
+                  type="button" 
+                  @click="isEditLinkModalOpen = false"
+                  class="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-background hover:bg-accent h-9 px-4 transition-colors cursor-pointer"
+                >
+                  取消
+                </button>
+                <button 
+                  type="submit" 
+                  class="inline-flex items-center justify-center rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 transition-colors cursor-pointer shadow-xs"
+                >
+                  保存修改
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </transition>
+    </teleport>
+
+    <!-- 🌟 编辑公告 Dialog (纯正 shadcn/ui Dialog 规范) -->
+    <teleport to="body">
+      <transition
+        enter-active-class="transition duration-150 ease-out"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition duration-100 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div 
+          v-if="isEditAnnModalOpen" 
+          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+          @click.self="isEditAnnModalOpen = false"
+        >
+          <div class="w-full max-w-lg rounded-lg border border-border bg-popover text-popover-foreground p-6 shadow-xl space-y-5 animate-in fade-in-0 zoom-in-95 duration-150">
+            <div class="space-y-1.5">
+              <h3 class="text-base font-semibold tracking-tight text-foreground">编辑公告内容</h3>
+              <p class="text-xs text-muted-foreground">修改公告文本并调整前台展示状态</p>
+            </div>
+
+            <form @submit.prevent="handleSaveEditAnnouncement" class="space-y-4">
+              <div class="space-y-1">
+                <label class="text-xs font-medium text-muted-foreground">公告内容</label>
+                <input 
+                  v-model="editingAnnouncement.content" 
+                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  required
+                />
+              </div>
+
+              <div class="flex items-center space-x-2 pt-1">
+                <input 
+                  v-model="editingAnnouncement.is_active" 
+                  type="checkbox" 
+                  id="edit-active"
+                  class="rounded border-input text-foreground focus:ring-ring"
+                />
+                <label for="edit-active" class="text-xs text-muted-foreground cursor-pointer">
+                  在前台首页生效展示
+                </label>
+              </div>
+
+              <div class="flex justify-end space-x-2 pt-2 border-t border-border">
+                <button 
+                  type="button" 
+                  @click="isEditAnnModalOpen = false"
+                  class="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-background hover:bg-accent h-9 px-4 transition-colors cursor-pointer"
+                >
+                  取消
+                </button>
+                <button 
+                  type="submit" 
+                  class="inline-flex items-center justify-center rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 transition-colors cursor-pointer shadow-xs"
+                >
+                  保存修改
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </transition>
+    </teleport>
   </div>
 </template>

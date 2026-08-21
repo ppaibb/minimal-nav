@@ -47,12 +47,14 @@ func registerRoutes(r *gin.RouterGroup) {
 	// 2. 导航链接管理 (读公开，写保护)
 	r.GET("/links", handlers.GetLinks)
 	r.POST("/links", handlers.AuthMiddleware(), handlers.CreateLink)
+	r.PUT("/links/:id", handlers.AuthMiddleware(), handlers.UpdateLink)
 	r.DELETE("/links/:id", handlers.AuthMiddleware(), handlers.DeleteLink)
 
 	// 3. 公告管理 (读公开，写保护)
 	r.GET("/announcements", handlers.GetAnnouncements)
 	r.GET("/announcements/active", handlers.GetActiveAnnouncements)
 	r.POST("/announcements", handlers.AuthMiddleware(), handlers.CreateAnnouncement)
+	r.PUT("/announcements/:id", handlers.AuthMiddleware(), handlers.UpdateAnnouncement)
 	r.PUT("/announcements/:id/toggle", handlers.AuthMiddleware(), handlers.ToggleAnnouncement)
 	r.DELETE("/announcements/:id", handlers.AuthMiddleware(), handlers.DeleteAnnouncement)
 

@@ -48,6 +48,38 @@ func CreateAnnouncement(c *gin.Context) {
 	Success(c, input)
 }
 
+// UpdateAnnouncement 修改公告内容与状态
+func UpdateAnnouncement(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		Error(c, 400, "无效的 ID 参数")
+		return
+	}
+
+	var existing models.Announcement
+	if err := db.DB.First(&existing, id).Error; err != nil {
+		Error(c, 404, "未找到该公告")
+		return
+	}
+
+	var input models.Announcement
+	if err := c.ShouldBindJSON(&input); err != nil {
+		Error(c, 400, "请求参数错误: "+err.Error())
+		return
+	}
+
+	existing.Content = input.Content
+	existing.IsActive = input.IsActive
+
+	if err := db.DB.Save(&existing).Error; err != nil {
+		Error(c, 500, "更新公告失败: "+err.Error())
+		return
+	}
+
+	Success(c, existing)
+}
+
 // ToggleAnnouncement 切换指定公告的生效状态
 func ToggleAnnouncement(c *gin.Context) {
 	idParam := c.Param("id")
