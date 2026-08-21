@@ -16,7 +16,7 @@ func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Admin-Token, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
 
 		if c.Request.Method == "OPTIONS" {
@@ -37,17 +37,39 @@ func registerRoutes(r *gin.RouterGroup) {
 		})
 	})
 
-	// 导航链接管理
-	r.GET("/links", handlers.GetLinks)
-	r.POST("/links", handlers.CreateLink)
-	r.DELETE("/links/:id", handlers.DeleteLink)
+	// 1. 认证接口
+	authGroup := r.Group("/auth")
+	{
+		authGroup.POST("/login", handlers.Login)
+		authGroup.GET("/check", handlers.AuthMiddleware(), handlers.CheckAuth)
+	}
 
-	// 公告管理
+	// 2. 导航链接管理 (读公开，写保护)
+	r.GET("/links", handlers.GetLinks)
+	r.POST("/links", handlers.AuthMiddleware(), handlers.CreateLink)
+	r.DELETE("/links/:id", handlers.AuthMiddleware(), handlers.DeleteLink)
+
+	// 3. 公告管理 (读公开，写保护)
 	r.GET("/announcements", handlers.GetAnnouncements)
 	r.GET("/announcements/active", handlers.GetActiveAnnouncements)
-	r.POST("/announcements", handlers.CreateAnnouncement)
-	r.PUT("/announcements/:id/toggle", handlers.ToggleAnnouncement)
-	r.DELETE("/announcements/:id", handlers.DeleteAnnouncement)
+	r.POST("/announcements", handlers.AuthMiddleware(), handlers.CreateAnnouncement)
+	r.PUT("/announcements/:id/toggle", handlers.AuthMiddleware(), handlers.ToggleAnnouncement)
+	r.DELETE("/announcements/:id", handlers.AuthMiddleware(), handlers.DeleteAnnouncement)
+
+	// 4. 工具能力 (Favicon 提取 & 连通性 Ping)
+	toolGroup := r.Group("/tools")
+	{
+		toolGroup.GET("/favicon", handlers.FetchFavicon)
+		toolGroup.POST("/ping", handlers.PingURL)
+	}
+
+	// 5. 数据备份与书签导入 (受口令保护)
+	backupGroup := r.Group("/backup", handlers.AuthMiddleware())
+	{
+		backupGroup.GET("/export", handlers.ExportBackup)
+		backupGroup.POST("/import", handlers.ImportBackup)
+		backupGroup.POST("/import-bookmarks", handlers.ImportBookmarks)
+	}
 }
 
 func main() {

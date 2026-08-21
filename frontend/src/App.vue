@@ -1,11 +1,36 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import CommandPalette from './components/CommandPalette.vue'
+
+interface LinkItem {
+  id: number
+  title: string
+  url: string
+  category: string
+  icon?: string
+}
 
 type ThemeMode = 'light' | 'dark' | 'system'
 
 const themeMode = ref<ThemeMode>('system')
 const isDropdownOpen = ref(false)
 const dropdownRef = ref<HTMLDivElement | null>(null)
+const globalLinks = ref<LinkItem[]>([])
+
+// 获取全局链接列表供 ⌘K 搜索面板使用
+const fetchGlobalLinks = async () => {
+  try {
+    const res = await fetch('/api/links')
+    if (res.ok) {
+      const data = await res.json()
+      if (data.code === 0 && Array.isArray(data.data)) {
+        globalLinks.value = data.data
+      }
+    }
+  } catch (err) {
+    console.error('Failed to fetch global links:', err)
+  }
+}
 
 // 应用主题 (支持平滑视觉过渡)
 const applyTheme = (mode: ThemeMode, event?: MouseEvent) => {
@@ -89,6 +114,7 @@ const handleClickOutside = (e: MouseEvent) => {
 onMounted(() => {
   const saved = (localStorage.getItem('theme_mode') as ThemeMode) || 'system'
   applyTheme(saved)
+  fetchGlobalLinks()
 
   const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
   mediaQuery.addEventListener('change', handleSystemThemeChange)
@@ -105,7 +131,7 @@ onUnmounted(() => {
 <template>
   <div class="min-h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200 selection:bg-zinc-200 dark:selection:bg-zinc-800">
     <!-- 🏛️ 极致极简顶栏 (左侧 Logo + Minimal Nav，右侧 太阳皮肤切换 + 齿轮设置) -->
-    <header class="border-b border-border/80 sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 transition-colors">
+    <header class="border-b border-border/80 sticky top-0 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 transition-colors">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
         <!-- 左侧: 仅保留 shadcn 官方矢量 Logo 图标 + Minimal Nav 标题 -->
         <router-link to="/" class="flex items-center space-x-2.5 group select-none">
@@ -233,5 +259,8 @@ onUnmounted(() => {
         <p class="font-mono text-xs text-muted-foreground/70">Go 1.21 + Vue 3 + Tailwind CSS</p>
       </div>
     </footer>
+
+    <!-- 🌟 全局 Command ⌘K 搜索面板 -->
+    <CommandPalette ref="commandPaletteRef" :links="globalLinks" />
   </div>
 </template>

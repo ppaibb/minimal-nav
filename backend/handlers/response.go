@@ -23,7 +23,11 @@ func Success(c *gin.Context, data interface{}) {
 }
 
 // Error 错误返回
-func Error(c *gin.Context, httpStatus int, code int, msg string) {
+func Error(c *gin.Context, code int, msg string) {
+	httpStatus := http.StatusOK
+	if code >= 400 && code < 600 {
+		httpStatus = code
+	}
 	c.JSON(httpStatus, Response{
 		Code: code,
 		Msg:  msg,

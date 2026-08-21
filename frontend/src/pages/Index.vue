@@ -7,6 +7,8 @@ interface LinkItem {
   url: string
   category: string
   icon?: string
+  latency_ms?: number
+  healthy?: boolean
 }
 
 interface AnnouncementItem {
@@ -22,6 +24,7 @@ const loading = ref(true)
 const selectedCategory = ref<string>('all')
 const searchQuery = ref<string>('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
+const healthStatusMap = ref<Record<number, { healthy: boolean; latency_ms: number }>>({})
 
 // 获取生效公告
 const fetchAnnouncements = async () => {
@@ -46,12 +49,39 @@ const fetchLinks = async () => {
       const data = await res.json()
       if (data.code === 0 && Array.isArray(data.data)) {
         links.value = data.data
+        // 自动探测前台健康状态 (非阻塞)
+        probeLinksHealth(data.data)
       }
     }
   } catch (err) {
     console.error('Failed to fetch links:', err)
   } finally {
     loading.value = false
+  }
+}
+
+// 异步轻量探测应用健康度
+const probeLinksHealth = async (items: LinkItem[]) => {
+  // 逐个轻量探测
+  for (const item of items.slice(0, 10)) {
+    try {
+      const res = await fetch('/api/tools/ping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: item.url }),
+      })
+      if (res.ok) {
+        const json = await res.json()
+        if (json.code === 0 && json.data) {
+          healthStatusMap.value[item.id] = {
+            healthy: json.data.healthy,
+            latency_ms: json.data.latency_ms,
+          }
+        }
+      }
+    } catch {
+      // 忽略单个报错
+    }
   }
 }
 
@@ -91,6 +121,15 @@ const filteredLinks = computed(() => {
     return matchCat && matchSearch
   })
 })
+
+// 图标加载失败优雅降级
+const handleIconError = (e: Event) => {
+  const target = e.target as HTMLElement
+  target.style.display = 'none'
+  if (target.nextElementSibling) {
+    (target.nextElementSibling as HTMLElement).style.display = 'flex'
+  }
+}
 
 // 快捷键 Ctrl+K / Cmd+K 快速聚焦搜索框
 const handleKeyDown = (e: KeyboardEvent) => {
@@ -211,7 +250,7 @@ onUnmounted(() => {
         ></div>
       </div>
 
-      <!-- 链接大卡片网格 -->
+      <!-- 链接大卡片网格 (支持 Favicon 高清渲染 + 优雅回退 + 健康探测微呼吸点) -->
       <div 
         v-else-if="filteredLinks.length > 0" 
         class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5"
@@ -224,9 +263,29 @@ onUnmounted(() => {
           rel="noopener noreferrer"
           class="group relative flex items-start p-5 sm:p-5.5 rounded-xl border border-border/80 bg-card text-card-foreground hover:border-zinc-400 dark:hover:border-zinc-600 hover:-translate-y-1 hover:shadow-lg hover:shadow-zinc-200/50 dark:hover:shadow-zinc-950/60 transition-all duration-200 ease-out cursor-pointer"
         >
-          <!-- 左侧首字母/品牌徽标槽 -->
-          <div class="w-11 h-11 rounded-lg bg-secondary flex items-center justify-center font-bold text-base text-foreground border border-border/50 shrink-0 group-hover:scale-105 transition-transform duration-200 select-none">
-            {{ getInitial(link.title) }}
+          <!-- 🌟 左侧 Favicon 真实图标槽 (带优雅降级) -->
+          <div class="relative w-11 h-11 rounded-lg bg-secondary flex items-center justify-center border border-border/50 shrink-0 group-hover:scale-105 transition-transform duration-200 select-none overflow-hidden p-1.5">
+            <img 
+              v-if="link.icon" 
+              :src="link.icon" 
+              :alt="link.title"
+              class="w-full h-full object-contain"
+              @error="handleIconError"
+            />
+            <div 
+              class="w-full h-full items-center justify-center font-bold text-base text-foreground"
+              :class="link.icon ? 'hidden' : 'flex'"
+            >
+              {{ getInitial(link.title) }}
+            </div>
+
+            <!-- 📶 健康度探测微状态指示点 -->
+            <span 
+              v-if="healthStatusMap[link.id]"
+              class="absolute top-1 right-1 w-2 h-2 rounded-full border border-background"
+              :class="healthStatusMap[link.id].healthy ? 'bg-emerald-500' : 'bg-rose-500'"
+              :title="healthStatusMap[link.id].healthy ? `服务正常 · 延迟: ${healthStatusMap[link.id].latency_ms}ms` : '服务暂时不可达'"
+            ></span>
           </div>
 
           <!-- 中间标题与信息 -->
@@ -241,9 +300,12 @@ onUnmounted(() => {
               {{ extractHostname(link.url) }}
             </p>
 
-            <div class="mt-2.5">
+            <div class="mt-2.5 flex items-center space-x-2">
               <span class="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-secondary/80 text-muted-foreground group-hover:text-foreground transition-colors">
                 {{ link.category || '默认' }}
+              </span>
+              <span v-if="healthStatusMap[link.id]?.healthy" class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">
+                {{ healthStatusMap[link.id].latency_ms }}ms
               </span>
             </div>
           </div>
