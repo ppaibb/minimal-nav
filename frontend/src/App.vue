@@ -28,51 +28,54 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200 selection:bg-zinc-200 dark:selection:bg-zinc-800">
-    <!-- 🏛️ 方案 A: 瑞士出版物报刊标头 (Swiss Editorial Header - 冷峻直线、纯文字排版、零油腻) -->
-    <header class="border-b border-border/80 sticky top-0 z-50 bg-background/90 backdrop-blur-md transition-colors">
-      <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 h-15 sm:h-16 flex items-center justify-between">
-        <!-- 左侧: 冷峻几何点缀 + 报刊大写标头 + 代码等宽注释 -->
-        <router-link to="/" class="flex items-center space-x-2 group select-none">
-          <span class="w-2 h-2 bg-foreground shrink-0 group-hover:rotate-45 transition-transform duration-200 inline-block"></span>
+    <!-- 🏛️ 正统 shadcn-admin 标准顶栏 (贴顶贯穿线、Ghost 导航按钮、官方标准 Icon) -->
+    <header class="border-b border-border/80 sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 transition-colors">
+      <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 h-14 sm:h-16 flex items-center justify-between">
+        <!-- 左侧: shadcn 标志性微图标 + Minimal Nav + 标识 -->
+        <router-link to="/" class="flex items-center space-x-2.5 group select-none">
+          <!-- shadcn 官方矢量 Logo 图标 -->
+          <div class="w-6 h-6 rounded-md bg-foreground text-background flex items-center justify-center p-1 shadow-xs group-hover:opacity-90 transition-opacity shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" class="h-full w-full fill-current">
+              <rect width="256" height="256" fill="none"></rect>
+              <line x1="208" y1="128" x2="128" y2="208" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="28"></line>
+              <line x1="192" y1="40" x2="40" y2="192" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="28"></line>
+            </svg>
+          </div>
+
           <div class="flex items-baseline space-x-2">
-            <span class="font-mono font-semibold text-sm sm:text-base tracking-wider uppercase text-foreground group-hover:opacity-80 transition-opacity">
-              MINIMAL NAV
+            <span class="font-semibold text-sm sm:text-base tracking-tight text-foreground">
+              Minimal Nav
             </span>
-            <span class="text-xs font-mono text-muted-foreground hidden sm:inline-block">
-              // 内部索引目录
+            <span class="text-xs text-muted-foreground font-mono hidden sm:inline-block">
+              / Internal Portal
             </span>
           </div>
         </router-link>
 
-        <!-- 中间: 极简等宽元数据 (大屏展示，无色块) -->
-        <div class="hidden md:flex items-center space-x-2 text-xs font-mono text-muted-foreground select-none">
-          <span>[ 状态: 正常运行 ]</span>
-        </div>
-
-        <!-- 右侧: 纯文字导航 (无任何背景色块、纯粹字阶与下划线) -->
-        <div class="flex items-center space-x-5 sm:space-x-7 text-sm font-medium">
+        <!-- 右侧: shadcn 标准 Ghost 导航与工具栏 -->
+        <div class="flex items-center space-x-1 sm:space-x-2 text-sm font-medium">
           <router-link 
             to="/" 
-            class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-1"
-            active-class="text-foreground font-semibold underline underline-offset-8 decoration-foreground/60"
+            class="px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors font-medium"
+            active-class="text-foreground bg-muted font-semibold shadow-xs"
           >
             首页
           </router-link>
           <router-link 
             to="/admin" 
-            class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-1"
-            active-class="text-foreground font-semibold underline underline-offset-8 decoration-foreground/60"
+            class="px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors font-medium"
+            active-class="text-foreground bg-muted font-semibold shadow-xs"
           >
             管理后台
           </router-link>
 
-          <!-- 极细垂直分割线 -->
-          <div class="h-3.5 w-px bg-border/80"></div>
+          <!-- 细分割竖线 -->
+          <div class="h-4 w-px bg-border/80 mx-1"></div>
 
-          <!-- 细线条模式切换按钮 (零背景色块) -->
+          <!-- shadcn 标准外框 Icon 按钮 -->
           <button 
             @click="toggleDark"
-            class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-1 focus:outline-none"
+            class="w-8 h-8 rounded-md border border-border/80 hover:bg-muted hover:text-foreground flex items-center justify-center text-muted-foreground transition-colors cursor-pointer focus:outline-none"
             :title="isDark ? '切换浅色模式' : '切换深色模式'"
           >
             <svg v-if="isDark" class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
@@ -92,7 +95,7 @@ onMounted(() => {
       <router-view />
     </main>
 
-    <!-- 底部 (冷峻直线分割) -->
+    <!-- 底部 (贯穿直线) -->
     <footer class="border-t border-border/80 py-8 text-xs text-muted-foreground">
       <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 flex flex-col sm:flex-row justify-between items-center gap-3">
         <p>© Minimal Nav. Designed for high efficiency & restrained elegance.</p>
