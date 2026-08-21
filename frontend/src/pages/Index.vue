@@ -114,7 +114,7 @@ onUnmounted(() => {
 <template>
   <div class="space-y-12 sm:space-y-16">
     <!-- 顶部大气问候与状态概览 (Hero Section) -->
-    <section class="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+    <section class="pb-2">
       <div>
         <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
           企业效率与工具导航
@@ -122,11 +122,6 @@ onUnmounted(() => {
         <p class="text-sm sm:text-base text-muted-foreground mt-2 max-w-2xl leading-relaxed">
           统一汇聚团队核心工具、部署控制台、设计协作及文档中心，即时检索快速直达。
         </p>
-      </div>
-
-      <div class="flex items-center space-x-3 text-xs sm:text-sm text-muted-foreground bg-secondary/50 px-4 py-2 rounded-lg border border-border/50 self-start md:self-auto">
-        <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span>已收录 <strong class="text-foreground font-semibold">{{ links.length }}</strong> 个内部应用</span>
       </div>
     </section>
 
