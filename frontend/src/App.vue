@@ -7,7 +7,7 @@ const themeMode = ref<ThemeMode>('system')
 const isDropdownOpen = ref(false)
 const dropdownRef = ref<HTMLDivElement | null>(null)
 
-// 应用主题 (支持 View Transitions 平滑视觉过渡)
+// 应用主题 (支持平滑视觉过渡)
 const applyTheme = (mode: ThemeMode, event?: MouseEvent) => {
   themeMode.value = mode
   localStorage.setItem('theme_mode', mode)
@@ -104,7 +104,7 @@ onUnmounted(() => {
 
 <template>
   <div class="min-h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200 selection:bg-zinc-200 dark:selection:bg-zinc-800">
-    <!-- 🏛️ 官方 shadcn/ui Typeset 标准顶栏 (Logo + Nav Links + Global Search + Theme Dropdown + Action Button) -->
+    <!-- 🏛️ 正统 shadcn 顶栏 (Logo + 导航 + 仅保留皮肤切换与设置) -->
     <header class="border-b border-border/80 sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 transition-colors">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
         <!-- 左侧: shadcn 官方矢量 Logo 图标 + 导航链接 -->
@@ -148,9 +148,9 @@ onUnmounted(() => {
           </nav>
         </div>
 
-        <!-- 右侧: 皮肤切换下拉 + 齿轮管理 + 新增快捷按钮 + 头像 -->
-        <div class="flex items-center space-x-2 sm:space-x-3 text-sm">
-          <!-- 🌟 皮肤切换下拉菜单 (Light / Dark / System) -->
+        <!-- 右侧: 仅保留 皮肤切换 (默认展示 Light 太阳图标) 与 齿轮设置 -->
+        <div class="flex items-center space-x-2 sm:space-x-2.5 text-sm">
+          <!-- 🌟 皮肤切换下拉菜单 (触发按钮固定/默认展示 Light 太阳图标) -->
           <div ref="dropdownRef" class="relative">
             <button
               @click.stop="isDropdownOpen = !isDropdownOpen"
@@ -158,20 +158,10 @@ onUnmounted(() => {
               :class="{ 'bg-accent text-foreground': isDropdownOpen }"
               title="切换显示模式"
             >
-              <!-- 太阳图标 (Light) -->
-              <svg v-if="themeMode === 'light'" class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+              <!-- 默认常态展示 Light 太阳图标 -->
+              <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
                 <circle cx="12" cy="12" r="4" />
                 <path stroke-linecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-              </svg>
-              <!-- 月亮图标 (Dark) -->
-              <svg v-else-if="themeMode === 'dark'" class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-              </svg>
-              <!-- 电脑/系统图标 (System) -->
-              <svg v-else class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-                <rect width="20" height="14" x="2" y="3" rx="2" />
-                <line x1="8" x2="16" y1="21" y2="21" />
-                <line x1="12" x2="12" y1="17" y2="21" />
               </svg>
             </button>
 
@@ -254,25 +244,6 @@ onUnmounted(() => {
               <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </router-link>
-
-          <!-- 细线分割 -->
-          <div class="h-4 w-px bg-border/80 mx-0.5"></div>
-
-          <!-- 🌟 shadcn 官方标志性黑色实心 [ + 录入 ] 按钮 -->
-          <router-link
-            to="/admin"
-            class="bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-2.5 sm:px-3 rounded-md text-xs font-medium shadow-xs inline-flex items-center gap-1.5 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 4v16m8-8H4" />
-            </svg>
-            <span class="hidden sm:inline">录入应用</span>
-          </router-link>
-
-          <!-- 👤 用户头像徽标 (SN) -->
-          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-secondary border border-border/80 flex items-center justify-center text-xs font-semibold text-foreground select-none shadow-2xs">
-            SN
-          </div>
         </div>
       </div>
     </header>
