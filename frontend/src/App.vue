@@ -1,36 +1,71 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
-const isDark = ref(false)
+type ThemeMode = 'light' | 'dark' | 'system'
 
-const toggleDark = () => {
-  isDark.value = !isDark.value
-  if (isDark.value) {
+const themeMode = ref<ThemeMode>('system')
+const isDropdownOpen = ref(false)
+const dropdownRef = ref<HTMLDivElement | null>(null)
+
+// 应用主题
+const applyTheme = (mode: ThemeMode) => {
+  themeMode.value = mode
+  localStorage.setItem('theme_mode', mode)
+
+  if (mode === 'system') {
+    const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    if (isSystemDark) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  } else if (mode === 'dark') {
     document.documentElement.classList.add('dark')
-    localStorage.setItem('theme', 'dark')
   } else {
     document.documentElement.classList.remove('dark')
-    localStorage.setItem('theme', 'light')
+  }
+  isDropdownOpen.value = false
+}
+
+// 监听系统主题变化
+const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+  if (themeMode.value === 'system') {
+    if (e.matches) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }
+}
+
+// 点击外部关闭下拉菜单
+const handleClickOutside = (e: MouseEvent) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
+    isDropdownOpen.value = false
   }
 }
 
 onMounted(() => {
-  const saved = localStorage.getItem('theme')
-  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-    isDark.value = true
-    document.documentElement.classList.add('dark')
-  } else {
-    isDark.value = false
-    document.documentElement.classList.remove('dark')
-  }
+  const saved = (localStorage.getItem('theme_mode') as ThemeMode) || 'system'
+  applyTheme(saved)
+
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  mediaQuery.addEventListener('change', handleSystemThemeChange)
+  window.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  mediaQuery.removeEventListener('change', handleSystemThemeChange)
+  window.removeEventListener('click', handleClickOutside)
 })
 </script>
 
 <template>
   <div class="min-h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200 selection:bg-zinc-200 dark:selection:bg-zinc-800">
-    <!-- 🏛️ 正统 shadcn-admin 标准顶栏 (贴顶贯穿线、Ghost 导航按钮、官方标准 Icon) -->
+    <!-- 🏛️ 正统 shadcn-admin 标准顶栏 (双线 Logo + 齿轮设置 + 皮肤切换浮层 + 头像) -->
     <header class="border-b border-border/80 sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 transition-colors">
-      <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 h-14 sm:h-16 flex items-center justify-between">
+      <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 h-15 sm:h-16 flex items-center justify-between">
         <!-- 左侧: shadcn 标志性微图标 + Minimal Nav + 标识 -->
         <router-link to="/" class="flex items-center space-x-2.5 group select-none">
           <!-- shadcn 官方矢量 Logo 图标 -->
@@ -52,40 +87,126 @@ onMounted(() => {
           </div>
         </router-link>
 
-        <!-- 右侧: shadcn 标准 Ghost 导航与工具栏 -->
-        <div class="flex items-center space-x-1 sm:space-x-2 text-sm font-medium">
+        <!-- 右侧: 首页链接 + 皮肤切换下拉 + 齿轮管理 + 头像 -->
+        <div class="flex items-center space-x-2 sm:space-x-3 text-sm">
+          <!-- 首页链接 -->
           <router-link 
             to="/" 
-            class="px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors font-medium"
+            class="px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors font-medium text-xs sm:text-sm hidden sm:inline-block"
             active-class="text-foreground bg-muted font-semibold shadow-xs"
           >
             首页
           </router-link>
+
+          <!-- 🌟 皮肤切换下拉菜单 (Light / Dark / System) -->
+          <div ref="dropdownRef" class="relative">
+            <button
+              @click.stop="isDropdownOpen = !isDropdownOpen"
+              class="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer focus:outline-none"
+              :class="{ 'bg-secondary text-foreground': isDropdownOpen }"
+              title="切换显示模式"
+            >
+              <!-- 太阳图标 (Light) -->
+              <svg v-if="themeMode === 'light'" class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                <circle cx="12" cy="12" r="4" />
+                <path stroke-linecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+              </svg>
+              <!-- 月亮图标 (Dark) -->
+              <svg v-else-if="themeMode === 'dark'" class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+              </svg>
+              <!-- 电脑/系统图标 (System) -->
+              <svg v-else class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                <rect width="20" height="14" x="2" y="3" rx="2" />
+                <line x1="8" x2="16" y1="21" y2="21" />
+                <line x1="12" x2="12" y1="17" y2="21" />
+              </svg>
+            </button>
+
+            <!-- 下拉浮层卡片 (纯正 shadcn/ui DropdownMenu 规范) -->
+            <transition
+              enter-active-class="transition duration-150 ease-out"
+              enter-from-class="transform scale-95 opacity-0 -translate-y-1"
+              enter-to-class="transform scale-100 opacity-100 translate-y-0"
+              leave-active-class="transition duration-100 ease-in"
+              leave-from-class="transform scale-100 opacity-100 translate-y-0"
+              leave-to-class="transform scale-95 opacity-0 -translate-y-1"
+            >
+              <div
+                v-if="isDropdownOpen"
+                class="absolute right-0 mt-2 w-36 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg z-50 focus:outline-none"
+              >
+                <!-- Light -->
+                <button
+                  @click="applyTheme('light')"
+                  class="w-full flex items-center justify-between px-2.5 py-1.5 text-xs sm:text-sm rounded-md hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer text-left"
+                >
+                  <div class="flex items-center space-x-2">
+                    <svg class="w-3.5 h-3.5 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                      <circle cx="12" cy="12" r="4" />
+                      <path stroke-linecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+                    </svg>
+                    <span>浅色模式</span>
+                  </div>
+                  <svg v-if="themeMode === 'light'" class="w-3.5 h-3.5 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                </button>
+
+                <!-- Dark -->
+                <button
+                  @click="applyTheme('dark')"
+                  class="w-full flex items-center justify-between px-2.5 py-1.5 text-xs sm:text-sm rounded-md hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer text-left"
+                >
+                  <div class="flex items-center space-x-2">
+                    <svg class="w-3.5 h-3.5 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                    </svg>
+                    <span>深色模式</span>
+                  </div>
+                  <svg v-if="themeMode === 'dark'" class="w-3.5 h-3.5 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                </button>
+
+                <!-- System -->
+                <button
+                  @click="applyTheme('system')"
+                  class="w-full flex items-center justify-between px-2.5 py-1.5 text-xs sm:text-sm rounded-md hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer text-left"
+                >
+                  <div class="flex items-center space-x-2">
+                    <svg class="w-3.5 h-3.5 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                      <rect width="20" height="14" x="2" y="3" rx="2" />
+                      <line x1="8" x2="16" y1="21" y2="21" />
+                      <line x1="12" x2="12" y1="17" y2="21" />
+                    </svg>
+                    <span>跟随系统</span>
+                  </div>
+                  <svg v-if="themeMode === 'system'" class="w-3.5 h-3.5 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                </button>
+              </div>
+            </transition>
+          </div>
+
+          <!-- ⚙️ 管理后台 (齿轮设置按钮) -->
           <router-link 
             to="/admin" 
-            class="px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors font-medium"
-            active-class="text-foreground bg-muted font-semibold shadow-xs"
+            class="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            active-class="bg-secondary text-foreground"
+            title="管理后台配置"
           >
-            管理后台
+            <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.6 6.6 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
           </router-link>
 
-          <!-- 细分割竖线 -->
-          <div class="h-4 w-px bg-border/80 mx-1"></div>
-
-          <!-- shadcn 标准外框 Icon 按钮 -->
-          <button 
-            @click="toggleDark"
-            class="w-8 h-8 rounded-md border border-border/80 hover:bg-muted hover:text-foreground flex items-center justify-center text-muted-foreground transition-colors cursor-pointer focus:outline-none"
-            :title="isDark ? '切换浅色模式' : '切换深色模式'"
-          >
-            <svg v-if="isDark" class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-              <circle cx="12" cy="12" r="4" />
-              <path stroke-linecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-            </svg>
-            <svg v-else class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-            </svg>
-          </button>
+          <!-- 👤 用户头像徽标 (SN) -->
+          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-secondary border border-border/80 flex items-center justify-center text-xs font-semibold text-foreground select-none shadow-2xs">
+            SN
+          </div>
         </div>
       </div>
     </header>
