@@ -28,45 +28,59 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200 selection:bg-zinc-200 dark:selection:bg-zinc-800">
-    <!-- 大气通透的顶部导航栏 -->
-    <header class="border-b border-border/50 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 sticky top-0 z-50 transition-colors">
-      <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 h-18 flex items-center justify-between">
-        <router-link to="/" class="flex items-center space-x-3 group">
-          <span class="w-2.5 h-2.5 rounded-full bg-foreground group-hover:scale-125 transition-transform duration-200 inline-block"></span>
-          <div class="flex flex-col">
-            <span class="font-semibold text-base tracking-tight text-foreground group-hover:opacity-85 transition-opacity">Minimal Nav</span>
-            <span class="text-[11px] text-muted-foreground tracking-wider uppercase font-mono hidden sm:inline-block">Internal Portal</span>
+    <!-- 🏛️ 方案 A: 瑞士出版物报刊标头 (Swiss Editorial Header - 冷峻直线、纯文字排版、零油腻) -->
+    <header class="border-b border-border/80 sticky top-0 z-50 bg-background/90 backdrop-blur-md transition-colors">
+      <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 h-15 sm:h-16 flex items-center justify-between">
+        <!-- 左侧: 冷峻几何点缀 + 报刊大写标头 + 代码等宽注释 -->
+        <router-link to="/" class="flex items-center space-x-2 group select-none">
+          <span class="w-2 h-2 bg-foreground shrink-0 group-hover:rotate-45 transition-transform duration-200 inline-block"></span>
+          <div class="flex items-baseline space-x-2">
+            <span class="font-mono font-semibold text-sm sm:text-base tracking-wider uppercase text-foreground group-hover:opacity-80 transition-opacity">
+              MINIMAL NAV
+            </span>
+            <span class="text-xs font-mono text-muted-foreground hidden sm:inline-block">
+              // 内部索引目录
+            </span>
           </div>
         </router-link>
 
-        <div class="flex items-center space-x-4 sm:space-x-6 text-sm">
+        <!-- 中间: 极简等宽元数据 (大屏展示，无色块) -->
+        <div class="hidden md:flex items-center space-x-2 text-xs font-mono text-muted-foreground select-none">
+          <span>[ 状态: 正常运行 ]</span>
+        </div>
+
+        <!-- 右侧: 纯文字导航 (无任何背景色块、纯粹字阶与下划线) -->
+        <div class="flex items-center space-x-5 sm:space-x-7 text-sm font-medium">
           <router-link 
             to="/" 
-            class="px-3.5 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all font-medium"
-            active-class="text-foreground bg-secondary/80 font-semibold"
+            class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-1"
+            active-class="text-foreground font-semibold underline underline-offset-8 decoration-foreground/60"
           >
             首页
           </router-link>
           <router-link 
             to="/admin" 
-            class="px-3.5 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all font-medium"
-            active-class="text-foreground bg-secondary/80 font-semibold"
+            class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-1"
+            active-class="text-foreground font-semibold underline underline-offset-8 decoration-foreground/60"
           >
             管理后台
           </router-link>
 
-          <div class="h-4 w-px bg-border/80"></div>
+          <!-- 极细垂直分割线 -->
+          <div class="h-3.5 w-px bg-border/80"></div>
 
+          <!-- 细线条模式切换按钮 (零背景色块) -->
           <button 
             @click="toggleDark"
-            class="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all cursor-pointer border border-border/60 hover:border-border shadow-subtle"
-            title="切换浅色/深色模式"
+            class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-1 focus:outline-none"
+            :title="isDark ? '切换浅色模式' : '切换深色模式'"
           >
-            <svg v-if="isDark" class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            <svg v-if="isDark" class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+              <circle cx="12" cy="12" r="4" />
+              <path stroke-linecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
             </svg>
-            <svg v-else class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            <svg v-else class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
             </svg>
           </button>
         </div>
@@ -78,8 +92,8 @@ onMounted(() => {
       <router-view />
     </main>
 
-    <!-- 底部 -->
-    <footer class="border-t border-border/50 py-8 text-center text-xs text-muted-foreground">
+    <!-- 底部 (冷峻直线分割) -->
+    <footer class="border-t border-border/80 py-8 text-xs text-muted-foreground">
       <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 flex flex-col sm:flex-row justify-between items-center gap-3">
         <p>© Minimal Nav. Designed for high efficiency & restrained elegance.</p>
         <p class="font-mono text-xs text-muted-foreground/70">Go 1.21 + Vue 3 + Tailwind CSS</p>
