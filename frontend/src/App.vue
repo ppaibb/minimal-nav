@@ -104,58 +104,32 @@ onUnmounted(() => {
 
 <template>
   <div class="min-h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200 selection:bg-zinc-200 dark:selection:bg-zinc-800">
-    <!-- 🏛️ 正统 shadcn 顶栏 (Logo + 导航 + 仅保留皮肤切换与设置) -->
+    <!-- 🏛️ 极致极简顶栏 (左侧 Logo + Minimal Nav，右侧 太阳皮肤切换 + 齿轮设置) -->
     <header class="border-b border-border/80 sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 transition-colors">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
-        <!-- 左侧: shadcn 官方矢量 Logo 图标 + 导航链接 -->
-        <div class="flex items-center space-x-4 sm:space-x-6">
-          <router-link to="/" class="flex items-center space-x-2.5 group select-none">
-            <!-- shadcn 官方矢量 Logo 图标 -->
-            <div class="w-6 h-6 rounded-md bg-foreground text-background flex items-center justify-center p-1 shadow-xs group-hover:opacity-90 transition-opacity shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" class="h-full w-full fill-current">
-                <rect width="256" height="256" fill="none"></rect>
-                <line x1="208" y1="128" x2="128" y2="208" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="28"></line>
-                <line x1="192" y1="40" x2="40" y2="192" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="28"></line>
-              </svg>
-            </div>
+        <!-- 左侧: 仅保留 shadcn 官方矢量 Logo 图标 + Minimal Nav 标题 -->
+        <router-link to="/" class="flex items-center space-x-2.5 group select-none">
+          <!-- shadcn 官方矢量 Logo 图标 -->
+          <div class="w-6 h-6 rounded-md bg-foreground text-background flex items-center justify-center p-1 shadow-xs group-hover:opacity-90 transition-opacity shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" class="h-full w-full fill-current">
+              <rect width="256" height="256" fill="none"></rect>
+              <line x1="208" y1="128" x2="128" y2="208" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="28"></line>
+              <line x1="192" y1="40" x2="40" y2="192" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="28"></line>
+            </svg>
+          </div>
 
-            <div class="flex items-baseline space-x-2">
-              <span class="font-semibold text-sm sm:text-base tracking-tight text-foreground">
-                Minimal Nav
-              </span>
-              <span class="text-xs text-muted-foreground font-mono hidden md:inline-block">
-                / Portal
-              </span>
-            </div>
-          </router-link>
+          <span class="font-semibold text-sm sm:text-base tracking-tight text-foreground">
+            Minimal Nav
+          </span>
+        </router-link>
 
-          <!-- 导航链接 (Ghost Buttons) -->
-          <nav class="hidden sm:flex items-center space-x-1 text-sm font-medium">
-            <router-link 
-              to="/" 
-              class="px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/80 transition-colors"
-              active-class="text-foreground bg-accent/80 font-medium"
-            >
-              首页
-            </router-link>
-            <router-link 
-              to="/admin" 
-              class="px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/80 transition-colors"
-              active-class="text-foreground bg-accent/80 font-medium"
-            >
-              管理后台
-            </router-link>
-          </nav>
-        </div>
-
-        <!-- 右侧: 仅保留 皮肤切换 (默认展示 Light 太阳图标) 与 齿轮设置 -->
-        <div class="flex items-center space-x-2 sm:space-x-2.5 text-sm">
-          <!-- 🌟 皮肤切换下拉菜单 (触发按钮固定/默认展示 Light 太阳图标) -->
+        <!-- 右侧: 仅保留 皮肤切换 (默认 Light 太阳图标) 与 齿轮设置 (与 Light 按钮样式完全一致，不做加深) -->
+        <div class="flex items-center space-x-1.5 sm:space-x-2 text-sm">
+          <!-- 🌟 皮肤切换下拉菜单 -->
           <div ref="dropdownRef" class="relative">
             <button
               @click.stop="isDropdownOpen = !isDropdownOpen"
               class="w-8 h-8 sm:w-9 sm:h-9 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer focus:outline-none"
-              :class="{ 'bg-accent text-foreground': isDropdownOpen }"
               title="切换显示模式"
             >
               <!-- 默认常态展示 Light 太阳图标 -->
@@ -232,11 +206,10 @@ onUnmounted(() => {
             </transition>
           </div>
 
-          <!-- ⚙️ 管理后台 (齿轮设置按钮) -->
+          <!-- ⚙️ 管理后台 (齿轮设置按钮 - 与 Light 按钮完全一致，无多余加深背景) -->
           <router-link 
             to="/admin" 
             class="w-8 h-8 sm:w-9 sm:h-9 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            active-class="bg-accent text-foreground"
             title="管理后台配置"
           >
             <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
