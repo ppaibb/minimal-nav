@@ -6,8 +6,8 @@ export interface SiteConfig {
 }
 
 const siteConfig = ref<SiteConfig>({
-  site_name: 'Minimal Nav',
-  site_desc: '统一汇聚团队核心工具、部署控制台、设计协作及文档中心，即时检索快速直达。'
+  site_name: '极简研发工作台',
+  site_desc: ''
 })
 
 const isLoaded = ref(false)
@@ -20,7 +20,7 @@ export const useSiteConfig = () => {
         const data = await res.json()
         if (data.code === 0 && data.data) {
           siteConfig.value = {
-            site_name: data.data.site_name || 'Minimal Nav',
+            site_name: data.data.site_name || '极简研发工作台',
             site_desc: data.data.site_desc || ''
           }
           document.title = siteConfig.value.site_name
@@ -45,7 +45,7 @@ export const useSiteConfig = () => {
     if (data.code === 0 && data.data) {
       siteConfig.value = {
         site_name: data.data.site_name || siteConfig.value.site_name,
-        site_desc: data.data.site_desc || siteConfig.value.site_desc
+        site_desc: data.data.site_desc !== undefined ? data.data.site_desc : ''
       }
       document.title = siteConfig.value.site_name
       return { success: true }

@@ -19,6 +19,22 @@ interface AnnouncementItem {
 }
 
 const announcements = ref<AnnouncementItem[]>([])
+const isAnnouncementsExpanded = ref(false)
+const DEFAULT_ANNOUNCEMENT_LIMIT = 3
+
+// 默认仅显示最新 3 条，展开后显示全部
+const displayedAnnouncements = computed(() => {
+  if (isAnnouncementsExpanded.value || announcements.value.length <= DEFAULT_ANNOUNCEMENT_LIMIT) {
+    return announcements.value
+  }
+  return announcements.value.slice(0, DEFAULT_ANNOUNCEMENT_LIMIT)
+})
+
+// 剩余未展开的公告数量
+const remainingAnnouncementsCount = computed(() => {
+  return Math.max(0, announcements.value.length - DEFAULT_ANNOUNCEMENT_LIMIT)
+})
+
 const links = ref<LinkItem[]>([])
 const loading = ref(true)
 const selectedCategory = ref<string>('all')
@@ -60,28 +76,93 @@ const fetchLinks = async () => {
   }
 }
 
-// 异步轻量探测应用健康度
-const probeLinksHealth = async (items: LinkItem[]) => {
-  // 逐个轻量探测
-  for (const item of items.slice(0, 10)) {
+// 纯前端客户端网络连通性与延迟探测 (直接反映当前用户本地网络环境)
+const pingClient = async (rawUrl: string, timeoutMs = 3000): Promise<{ healthy: boolean; latency_ms: number }> => {
+  let targetUrl = rawUrl.trim()
+  if (!/^https?:\/\//i.test(targetUrl)) {
+    targetUrl = 'https://' + targetUrl
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  const startTime = performance.now()
+
+  try {
+    // 使用 no-cors 模式向目标地址发起轻量探测 (即使跨域 opaque 响应，只要能连通即可精确测得本地网络 RTT 延迟)
+    await fetch(targetUrl, {
+      method: 'GET',
+      mode: 'no-cors',
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+    const latency = Math.round(performance.now() - startTime)
+    return { healthy: true, latency_ms: latency }
+  } catch (err) {
+    clearTimeout(timeoutId)
+    // 如果 fetch 失败或被拦截，尝试轻量级的 Image ping (针对部分阻止 no-cors GET 的内网站点)
     try {
-      const res = await fetch('/api/tools/ping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: item.url }),
-      })
-      if (res.ok) {
-        const json = await res.json()
-        if (json.code === 0 && json.data) {
-          healthStatusMap.value[item.id] = {
-            healthy: json.data.healthy,
-            latency_ms: json.data.latency_ms,
-          }
+      const imgPing = await new Promise<number>((resolve, reject) => {
+        const img = new Image()
+        const timer = setTimeout(() => reject('timeout'), 1500)
+        img.onload = () => {
+          clearTimeout(timer)
+          resolve(Math.round(performance.now() - startTime))
         }
-      }
+        img.onerror = () => {
+          clearTimeout(timer)
+          // 产生 onerror 说明目标服务器已连通并返回了非图片响应 (如 HTML 404/200)
+          resolve(Math.round(performance.now() - startTime))
+        }
+        img.src = `${targetUrl.replace(/\/$/, '')}/favicon.ico?_t=${Date.now()}`
+      })
+      return { healthy: true, latency_ms: imgPing }
     } catch {
-      // 忽略单个报错
+      return { healthy: false, latency_ms: 0 }
     }
+  }
+}
+
+// 批量轻量探测当前所有导航链接
+const probeLinksHealth = async (items: LinkItem[]) => {
+  if (!items || items.length === 0) return
+  // 并发轻量探测
+  const tasks = items.map(async (item) => {
+    const res = await pingClient(item.url)
+    healthStatusMap.value[item.id] = res
+  })
+  await Promise.allSettled(tasks)
+}
+
+// 定时轮询定时器与可见性控制 (每 30 秒静默更新一次)
+let probeTimer: ReturnType<typeof setInterval> | null = null
+const PROBE_INTERVAL_MS = 30000
+
+const startPeriodicProbe = () => {
+  stopPeriodicProbe()
+  probeTimer = setInterval(() => {
+    if (document.visibilityState === 'visible' && links.value.length > 0) {
+      probeLinksHealth(links.value)
+    }
+  }, PROBE_INTERVAL_MS)
+}
+
+const stopPeriodicProbe = () => {
+  if (probeTimer) {
+    clearInterval(probeTimer)
+    probeTimer = null
+  }
+}
+
+// 当用户切走标签页时暂停测速，切回前台时立即刷新一次
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible') {
+    if (links.value.length > 0) {
+      probeLinksHealth(links.value)
+    }
+    startPeriodicProbe()
+  } else {
+    stopPeriodicProbe()
   }
 }
 
@@ -99,6 +180,29 @@ const extractHostname = (url: string) => {
 const getInitial = (title: string) => {
   if (!title) return 'N'
   return title.trim().charAt(0).toUpperCase()
+}
+
+// 🌟 为无 Favicon 的首字母卡片生成 Vercel 风格的高级柔和微晶色彩
+const getInitialColorClass = (title: string, category = '') => {
+  const str = (title + category).toLowerCase()
+  if (str.includes('vue')) return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25'
+  if (str.includes('tailwind') || str.includes('css')) return 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/25'
+  if (str.includes('go') || str.includes('dev')) return 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/25'
+  if (str.includes('react') || str.includes('front')) return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/25'
+  if (str.includes('linear') || str.includes('design') || str.includes('figma')) return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/25'
+  if (str.includes('cloud') || str.includes('ops') || str.includes('deploy')) return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25'
+  
+  const hash = str.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  const palettes = [
+    'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25',
+    'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/25',
+    'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/25',
+    'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/25',
+    'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/25',
+    'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25',
+    'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/25',
+  ]
+  return palettes[hash % palettes.length]
 }
 
 // 计算所有分类
@@ -135,6 +239,40 @@ import { useSiteConfig } from '../utils/useSiteConfig'
 
 const { siteConfig, loadSiteConfig } = useSiteConfig()
 
+// 🌟 公告展示模式：'board' (瑞士通知板 A) | 'broadcast' (Vercel 单行广播条 B)
+const announcementViewMode = ref<'board' | 'broadcast'>((localStorage.getItem('announcement_view_mode') as 'board' | 'broadcast') || 'board')
+const setAnnouncementViewMode = (mode: 'board' | 'broadcast') => {
+  announcementViewMode.value = mode
+  localStorage.setItem('announcement_view_mode', mode)
+}
+
+// 广播条轮播索引与控制器
+const broadcastIndex = ref(0)
+const nextBroadcast = () => {
+  if (announcements.value.length === 0) return
+  broadcastIndex.value = (broadcastIndex.value + 1) % announcements.value.length
+}
+const prevBroadcast = () => {
+  if (announcements.value.length === 0) return
+  broadcastIndex.value = (broadcastIndex.value - 1 + announcements.value.length) % announcements.value.length
+}
+
+let broadcastTimer: ReturnType<typeof setInterval> | null = null
+const startBroadcastAutoPlay = () => {
+  stopBroadcastAutoPlay()
+  broadcastTimer = setInterval(() => {
+    if (announcementViewMode.value === 'broadcast' && announcements.value.length > 1) {
+      nextBroadcast()
+    }
+  }, 5000)
+}
+const stopBroadcastAutoPlay = () => {
+  if (broadcastTimer) {
+    clearInterval(broadcastTimer)
+    broadcastTimer = null
+  }
+}
+
 // 快捷键 Ctrl+K / Cmd+K 快速聚焦搜索框
 const handleKeyDown = (e: KeyboardEvent) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -147,47 +285,74 @@ onMounted(() => {
   loadSiteConfig()
   fetchAnnouncements()
   fetchLinks()
+  startPeriodicProbe()
+  startBroadcastAutoPlay()
   window.addEventListener('keydown', handleKeyDown)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
+  stopPeriodicProbe()
+  stopBroadcastAutoPlay()
   window.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
 <template>
-  <div class="space-y-12 sm:space-y-16">
-    <!-- 顶部大气问候与状态概览 (Hero Section) -->
-    <section class="pb-2">
-      <div>
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-          {{ siteConfig.site_name }}
-        </h1>
-        <p v-if="siteConfig.site_desc" class="text-sm sm:text-base text-muted-foreground mt-2 max-w-2xl leading-relaxed">
-          {{ siteConfig.site_desc }}
-        </p>
-      </div>
-    </section>
-
-    <!-- 顶部公告区 (Announcements) -->
-    <section v-if="announcements.length > 0" class="border-y border-border/50 py-3.5">
-      <div class="space-y-2">
-        <div 
-          v-for="item in announcements" 
-          :key="item.id" 
-          class="text-xs sm:text-sm text-muted-foreground leading-relaxed flex items-center space-x-3"
-        >
-          <span class="px-2 py-0.5 text-[11px] font-semibold rounded bg-secondary text-foreground shrink-0">
+  <div class="space-y-6 sm:space-y-8">
+    <!-- 🌟 顶部单行公告广播条 (无卡片包裹 · 纯净通栏 · 黄金字阶 12~13px) -->
+    <section v-if="announcements.length > 0" class="py-0.5 transition-all duration-200">
+      <div class="flex items-center justify-between gap-3 min-w-0">
+        <!-- 左侧：经典清晰加粗公告标签 + 高清适中字阶轮播 -->
+        <div class="flex items-center space-x-2.5 min-w-0 flex-1">
+          <span class="px-1.5 py-0.5 text-[11px] font-bold rounded bg-secondary text-foreground shrink-0 select-none">
             公告
           </span>
-          
-          <!-- 直接点击公告标题跳转至对应的 Markdown 详情页 -->
+
+          <div class="min-w-0 flex-1 relative overflow-hidden h-5 flex items-center">
+            <router-link
+              v-if="announcements[broadcastIndex]"
+              :key="announcements[broadcastIndex].id"
+              :to="'/docs/' + announcements[broadcastIndex].id"
+              class="tracking-tight text-xs sm:text-[13px] font-medium text-foreground/90 hover:text-foreground hover:underline transition-all truncate cursor-pointer font-sans block"
+              :title="'查看详情: ' + announcements[broadcastIndex].content"
+            >
+              {{ announcements[broadcastIndex].content }}
+            </router-link>
+          </div>
+        </div>
+
+        <!-- 右侧：翻页控制器 + 详情查看 -->
+        <div class="flex items-center space-x-2 shrink-0">
+          <!-- 上一条 / 下一条微控制器 -->
+          <div class="flex items-center space-x-1 text-xs text-muted-foreground font-mono">
+            <button 
+              @click="prevBroadcast" 
+              class="w-5 h-5 rounded flex items-center justify-center hover:bg-accent text-foreground/80 hover:text-foreground cursor-pointer text-xs"
+              title="上一条公告"
+            >
+              ‹
+            </button>
+            <span class="text-[11px] text-muted-foreground/80 select-none">{{ broadcastIndex + 1 }}/{{ announcements.length }}</span>
+            <button 
+              @click="nextBroadcast" 
+              class="w-5 h-5 rounded flex items-center justify-center hover:bg-accent text-foreground/80 hover:text-foreground cursor-pointer text-xs"
+              title="下一条公告"
+            >
+              ›
+            </button>
+          </div>
+
           <router-link
-            :to="'/docs/' + item.id"
-            class="tracking-tight text-foreground/90 hover:text-primary hover:underline transition-colors truncate cursor-pointer"
-            :title="'查看详情: ' + item.content"
+            v-if="announcements[broadcastIndex]"
+            :to="'/docs/' + announcements[broadcastIndex].id"
+            class="text-[11px] text-muted-foreground hover:text-foreground transition-colors font-sans flex items-center space-x-0.5 ml-0.5"
           >
-            {{ item.content }}
+            <span>详情</span>
+            <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
           </router-link>
         </div>
       </div>
@@ -255,7 +420,7 @@ onUnmounted(() => {
     <!-- 导航网格区 (Navigation Grid) -->
     <section>
       <!-- 加载中骨架 -->
-      <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+      <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
         <div 
           v-for="n in 8" 
           :key="n" 
@@ -263,7 +428,7 @@ onUnmounted(() => {
         ></div>
       </div>
 
-      <!-- 链接大卡片网格 (支持 Favicon 高清渲染 + 优雅回退 + 健康探测微呼吸点) -->
+      <!-- 链接大卡片网格 (支持 Favicon 高清渲染 + 柔和晶体色彩回退 + 健康探测微呼吸点) -->
       <div 
         v-else-if="filteredLinks.length > 0" 
         class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5"
@@ -274,10 +439,13 @@ onUnmounted(() => {
           :href="link.url" 
           target="_blank" 
           rel="noopener noreferrer"
-          class="group relative flex items-start p-5 sm:p-5.5 rounded-xl border border-border/80 bg-card text-card-foreground hover:border-zinc-400 dark:hover:border-zinc-600 hover:-translate-y-1 hover:shadow-lg hover:shadow-zinc-200/50 dark:hover:shadow-zinc-950/60 transition-all duration-200 ease-out cursor-pointer"
+          class="group relative flex items-start p-5 sm:p-5.5 rounded-xl border border-border/80 bg-card text-card-foreground hover:border-zinc-300 dark:hover:border-zinc-700 hover:-translate-y-0.5 hover:shadow-md hover:shadow-zinc-200/40 dark:hover:shadow-zinc-950/50 transition-all duration-200 ease-out cursor-pointer"
         >
-          <!-- 🌟 左侧 Favicon 真实图标槽 (带优雅降级) -->
-          <div class="relative w-11 h-11 rounded-lg bg-secondary flex items-center justify-center border border-border/50 shrink-0 group-hover:scale-105 transition-transform duration-200 select-none overflow-hidden p-1.5">
+          <!-- 🌟 左侧 Favicon 真实图标槽 (带智能柔和微晶色彩优雅降级) -->
+          <div 
+            class="relative w-11 h-11 rounded-lg flex items-center justify-center border shrink-0 group-hover:scale-105 transition-transform duration-200 select-none overflow-hidden p-1.5"
+            :class="link.icon ? 'bg-secondary/70 border-border/50' : getInitialColorClass(link.title, link.category)"
+          >
             <img 
               v-if="link.icon" 
               :src="link.icon" 
@@ -286,17 +454,17 @@ onUnmounted(() => {
               @error="handleIconError"
             />
             <div 
-              class="w-full h-full items-center justify-center font-bold text-base text-foreground"
+              class="w-full h-full items-center justify-center font-bold text-base"
               :class="link.icon ? 'hidden' : 'flex'"
             >
               {{ getInitial(link.title) }}
             </div>
 
-            <!-- 📶 健康度探测微状态指示点 -->
+            <!-- 📶 健康度探测微状态指示点 (带精致微光呼吸辉光) -->
             <span 
               v-if="healthStatusMap[link.id]"
               class="absolute top-1 right-1 w-2 h-2 rounded-full border border-background"
-              :class="healthStatusMap[link.id].healthy ? 'bg-emerald-500' : 'bg-rose-500'"
+              :class="healthStatusMap[link.id].healthy ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]' : 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.7)]'"
               :title="healthStatusMap[link.id].healthy ? `服务正常 · 延迟: ${healthStatusMap[link.id].latency_ms}ms` : '服务暂时不可达'"
             ></span>
           </div>
@@ -304,7 +472,7 @@ onUnmounted(() => {
           <!-- 中间标题与信息 -->
           <div class="ml-4 flex-1 min-w-0 pr-2">
             <div class="flex items-center justify-between">
-              <h3 class="text-base font-semibold tracking-tight text-foreground truncate group-hover:text-primary transition-colors">
+              <h3 class="text-base font-semibold tracking-tight text-foreground truncate group-hover:text-foreground transition-colors">
                 {{ link.title }}
               </h3>
             </div>
@@ -321,10 +489,10 @@ onUnmounted(() => {
 
               <div 
                 v-if="healthStatusMap[link.id]?.healthy"
-                class="inline-flex items-center space-x-1.5 text-[10px] font-mono text-muted-foreground/70 shrink-0"
+                class="inline-flex items-center space-x-1.5 text-[10px] font-mono text-muted-foreground/80 shrink-0"
                 :title="`连通正常 · 响应时间 ${healthStatusMap[link.id].latency_ms}ms`"
               >
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.7)] shrink-0"></span>
                 <span>{{ healthStatusMap[link.id].latency_ms }}ms</span>
               </div>
             </div>
@@ -336,7 +504,7 @@ onUnmounted(() => {
             xmlns="http://www.w3.org/2000/svg" 
             fill="none" 
             viewBox="0 0 24 24" 
-            stroke="currentColor"
+            stroke="currentColor" 
           >
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H7M17 7V17" />
           </svg>

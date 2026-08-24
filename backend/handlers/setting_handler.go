@@ -15,13 +15,11 @@ func GetSettings(c *gin.Context) {
 
 	settingsMap := map[string]string{
 		"site_name": "Minimal Nav",
-		"site_desc": "统一汇聚团队核心工具、部署控制台、设计协作及文档中心，即时检索快速直达。",
+		"site_desc": "",
 	}
 
 	for _, item := range list {
-		if item.Value != "" {
-			settingsMap[item.Key] = item.Value
-		}
+		settingsMap[item.Key] = item.Value
 	}
 
 	Success(c, settingsMap)
