@@ -507,7 +507,7 @@ onMounted(() => {
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
           <h2 class="text-2xl font-bold tracking-tight text-foreground">后台资源管理</h2>
-          <p class="text-xs text-muted-foreground mt-0.5">维护团队内部索引、公告通知、健康度探测及数据备份</p>
+          <p class="text-xs text-muted-foreground mt-0.5">维护团队内部索引、公告通知、服务健康检测及数据备份</p>
         </div>
 
         <div class="flex items-center space-x-3">
@@ -579,7 +579,7 @@ onMounted(() => {
         <div class="rounded-lg border border-border bg-card p-5 space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-semibold text-foreground">录入新导航链接</h3>
-            <span class="text-xs text-muted-foreground">输入网址将自动探测并绑定高清 Favicon</span>
+            <span class="text-xs text-muted-foreground">输入网址将自动匹配网站高清图标</span>
           </div>
 
           <form @submit.prevent="handleAddLink" class="space-y-4">
@@ -600,9 +600,12 @@ onMounted(() => {
                   <button
                     type="button"
                     @click="handleAutoFavicon(false)"
-                    class="text-[11px] font-mono text-muted-foreground hover:text-foreground cursor-pointer underline"
+                    class="text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer flex items-center space-x-1"
                   >
-                    {{ faviconLoading ? '抓取中...' : '嗅探图标' }}
+                    <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    <span>{{ faviconLoading ? '获取中...' : '自动获取图标' }}</span>
                   </button>
                 </div>
                 <input 
@@ -651,10 +654,13 @@ onMounted(() => {
             <button
               @click="handleTestAllPing"
               :disabled="pingLoading"
-              class="inline-flex items-center space-x-1.5 text-xs border border-input bg-background hover:bg-accent px-2.5 py-1 rounded-md font-mono transition-colors cursor-pointer"
+              class="inline-flex items-center space-x-1.5 text-xs font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground px-3 py-1 rounded-md transition-colors cursor-pointer disabled:opacity-50"
             >
-              <span class="w-1.5 h-1.5 rounded-full" :class="pingLoading ? 'bg-amber-500 animate-spin' : 'bg-emerald-500'"></span>
-              <span>{{ pingLoading ? '正在测试...' : '探测全部连通性' }}</span>
+              <svg v-if="!pingLoading" class="w-3.5 h-3.5 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+              </svg>
+              <span v-else class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+              <span>{{ pingLoading ? '正在检测服务...' : '检测服务状态' }}</span>
             </button>
           </div>
 
@@ -665,7 +671,7 @@ onMounted(() => {
                   <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">图标 / 标题</th>
                   <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">目标网址</th>
                   <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">分类</th>
-                  <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">健康连通度</th>
+                  <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">服务状态</th>
                   <th class="h-10 px-4 text-right align-middle font-medium text-muted-foreground">操作</th>
                 </tr>
               </thead>
@@ -698,7 +704,7 @@ onMounted(() => {
                         {{ pingResults[link.id].healthy ? `${pingResults[link.id].latency_ms}ms (HTTP ${pingResults[link.id].status_code})` : '超时不可达' }}
                       </span>
                     </span>
-                    <span v-else class="text-muted-foreground/60">未探测</span>
+                    <span v-else class="text-muted-foreground/60">未检测</span>
                   </td>
 
                   <!-- ✏️ 操作区：编辑 + 删除 -->
@@ -908,9 +914,12 @@ onMounted(() => {
                   <button
                     type="button"
                     @click="handleAutoFavicon(true)"
-                    class="text-[11px] font-mono text-muted-foreground hover:text-foreground cursor-pointer underline"
+                    class="text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer flex items-center space-x-1"
                   >
-                    {{ editFaviconLoading ? '抓取中...' : '重新嗅探图标' }}
+                    <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    <span>{{ editFaviconLoading ? '获取中...' : '重新获取图标' }}</span>
                   </button>
                 </div>
                 <input 
