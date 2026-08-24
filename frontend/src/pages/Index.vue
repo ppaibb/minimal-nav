@@ -165,17 +165,29 @@ onUnmounted(() => {
     </section>
 
     <!-- 顶部公告区 (Announcements) -->
-    <section v-if="announcements.length > 0" class="border-y border-border/50 py-5">
-      <div class="space-y-3">
+    <section v-if="announcements.length > 0" class="border-y border-border/50 py-4">
+      <div class="space-y-2.5">
         <div 
           v-for="item in announcements" 
           :key="item.id" 
-          class="text-sm sm:text-base text-muted-foreground leading-relaxed flex items-start space-x-3"
+          class="text-xs sm:text-sm text-muted-foreground leading-relaxed flex items-center justify-between gap-3 group p-1 -mx-1 rounded-md hover:bg-muted/30 transition-colors"
         >
-          <span class="px-2 py-0.5 text-xs font-semibold rounded bg-zinc-200/80 dark:bg-zinc-800 text-foreground shrink-0 mt-0.5">
-            公告
-          </span>
-          <span class="tracking-tight text-foreground/90">{{ item.content }}</span>
+          <div class="flex items-start sm:items-center space-x-3 min-w-0">
+            <span class="px-2 py-0.5 text-[11px] font-semibold rounded bg-secondary text-foreground shrink-0">
+              公告
+            </span>
+            <span class="tracking-tight text-foreground/90 truncate">{{ item.content }}</span>
+          </div>
+
+          <!-- 若包含 AI 指南相关，或通用详情链接 -->
+          <router-link 
+            v-if="item.content.includes('AI') || item.content.includes('指南') || item.content.includes('Claude') || item.content.includes('Codex')"
+            to="/docs/ai"
+            class="text-xs text-primary hover:underline font-medium shrink-0 flex items-center space-x-1"
+          >
+            <span>查看指南</span>
+            <span>&rarr;</span>
+          </router-link>
         </div>
       </div>
     </section>

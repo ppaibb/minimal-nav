@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 编程助手接入指南 · 内部工作台</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 20px 24px 60px;
+            color: #2c3e50;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 4px;
+            color: #1a252f;
+        }
+
+        .page-desc {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        h2 {
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 6px;
+            color: #2980b9;
+            margin-top: 36px;
+            font-size: 16px;
+        }
+
+        h3 {
+            color: #34495e;
+            margin-top: 18px;
+            font-size: 14px;
+        }
+
+        p {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid #e9ecef;
+            margin: 10px 0 16px;
+            position: relative;
+        }
+
+        code {
+            font-family: 'Menlo', 'Consolas', monospace;
+            font-size: 13px;
+            color: #d63384;
+            background: #f8f9fa;
+            padding: 1px 5px;
+            border-radius: 3px;
+            border: 1px solid #e9ecef;
+        }
+
+        pre code {
+            color: #2c3e50;
+            background: transparent;
+            padding: 0;
+            border: none;
+            font-size: 13px;
+        }
+
+        ol,
+        ul {
+            padding-left: 25px;
+            margin-bottom: 14px;
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        a {
+            color: #2980b9;
+        }
+
+        .pro-tip {
+            background: #f0f7ff;
+            border-left: 4px solid #3498db;
+            padding: 12px 18px;
+            margin: 14px 0;
+            border-radius: 0 4px 4px 0;
+            font-size: 13.5px;
+        }
+
+        .warn-tip {
+            background: #fffbeb;
+            border-left: 4px solid #d97706;
+            padding: 12px 18px;
+            margin: 14px 0;
+            border-radius: 0 4px 4px 0;
+            font-size: 13.5px;
+            color: #78350f;
+        }
+
+        .danger-tip {
+            background: #ffebe9;
+            border-left: 4px solid #cf222e;
+            padding: 12px 18px;
+            margin: 14px 0;
+            border-radius: 0 4px 4px 0;
+            font-size: 13.5px;
+            color: #82071e;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0 20px;
+            font-size: 13.5px;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 9px 13px;
+            border: 1px solid #dee2e6;
+        }
+
+        th {
+            background: #f1f3f5;
+            font-weight: 600;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 3px 9px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #6c757d;
+        }
+
+        .copy-btn:hover {
+            border-color: #3498db;
+            color: #2980b9;
+        }
+
+        .copy-btn.ok {
+            background: #198754;
+            color: #fff;
+            border-color: #198754;
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 6px;
+            margin: 20px 0 4px;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .tab-btn {
+            padding: 8px 18px;
+            font-size: 14px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #6c757d;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            font-family: inherit;
+        }
+
+        .tab-btn.active {
+            color: #2980b9;
+            border-bottom-color: #2980b9;
+            font-weight: 600;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        figure img {
+            max-width: 100%;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            cursor: zoom-in;
+            margin-top: 8px;
+        }
+
+        figcaption {
+            font-size: 12.5px;
+            color: #6c757d;
+            margin-top: 6px;
+        }
+
+        .lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            cursor: zoom-out;
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 95%;
+            max-height: 92vh;
+            border-radius: 4px;
+        }
+
+        footer {
+            margin-top: 50px;
+            padding-top: 16px;
+            border-top: 1px solid #dee2e6;
+            font-size: 12px;
+            color: #6c757d;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        footer a {
+            color: #2980b9;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div style="font-size:13px;color:#adb5bd;margin-bottom:20px;"><a href="./index.html"
+            style="color:#2980b9;text-decoration:none;">内部工作台</a> / AI 编程助手接入指南</div>
+
+    <h1>AI 编程助手接入指南</h1>
+
+    <div class="pro-tip">
+        <strong>🔥 准备工作与注意事项：</strong><br>
+        1. <strong>独立专属 Key：</strong>每个人使用独立的专属 API Key，请勿混用或共享。开通权限或获取 Key 请在飞书联系 <strong>@闫东</strong>。<br>
+        2. <strong>分组说明：</strong>当前 Key 区分 <strong>Claude</strong> 与 <strong>Codex</strong> 独立路由分组，如需跨组使用请联系管理员调整。
+    </div>
+
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('claude', this)">Claude Code <small
+                style="font-size:11px;color:#aaa;">CLI / 终端</small></button>
+        <button class="tab-btn" onclick="switchTab('codex', this)">Codex <small style="font-size:11px;color:#aaa;">CLI
+                &amp; App</small></button>
+        <button class="tab-btn" onclick="switchTab('workbuddy', this)">WorkBuddy <small
+                style="font-size:11px;color:#aaa;">桌面客户端</small></button>
+    </div>
+
+    <!-- ===== Tab 1: Claude Code ===== -->
+    <div id="pane-claude" class="tab-pane active">
+
+        <p>将 Claude Code 的默认请求地址替换为 <strong>724AI</strong> 中转站（<code>api.724ai.org</code>），直连稳定无需代理。</p>
+
+        <h2>1. 安装 Claude Code</h2>
+        <p>确保已安装 Node.js 环境（建议 Node 18+）。根据网络环境选择一种安装方式：</p>
+
+        <h3>方式一：npm 安装（推荐，无需代理）</h3>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>npm install -g @anthropic-ai/claude-code</code></pre>
+        <p>安装完成后，即可在终端使用 <code>claude</code> 命令。VS Code 用户可在插件市场搜索安装「Claude Code for VS Code」。</p>
+
+        <h3>方式二：官方脚本安装（需代理）</h3>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>curl -fsSL https://claude.ai/install.sh | bash</code></pre>
+        <div class="warn-tip">若无代理直连会返回网页错误页，导致 bash 报 <code>syntax error</code> 乱码。遇到报错请改用方式一（npm 安装）。</div>
+
+        <h2>2. 配置 724AI 接入</h2>
+        <p>编辑配置文件 <code>~/.claude/settings.json</code>（Windows 对应 <code>C:\Users\用户名\.claude\settings.json</code>）：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>{
+  "env": {
+    "ANTHROPIC_API_KEY": "sk-xxxxxxxxxxxxxxxx",
+    "ANTHROPIC_BASE_URL": "https://api.724ai.org",
+    "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1"
+  }
+}</code></pre>
+        <div class="danger-tip"><strong>注意：</strong><code>ANTHROPIC_BASE_URL</code> 必须填写
+            <code>https://api.724ai.org</code>，末尾<strong>严禁加斜杠 <code>/</code></strong>。请将 API_KEY 替换为您自己的专属 Key。
+        </div>
+
+        <h2>3. 免登录配置（跳过官方鉴权）</h2>
+        <p>为了跳过强制的官方网页登录，在 <code>~/.claude.json</code> 中添加跳过标识：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>{
+  "hasCompletedOnboarding": true
+}</code></pre>
+
+        <h2>4. 开始使用与模型推荐</h2>
+        <p>在项目目录下输入命令启动：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>claude</code></pre>
+        <div class="warn-tip">启动后 Claude 若提示是否使用自定义 Key，必须输入 <strong>yes</strong>。如果选错，可删除 <code>~/.claude.json</code>
+            重新配置。</div>
+
+        <h3>常用模型说明</h3>
+        <ul>
+            <li><code>claude-sonnet-5</code>：日常主力编码推荐（响应快、成本适中）</li>
+            <li><code>claude-fable-5</code>：复杂攻坚任务模型</li>
+        </ul>
+        <p>指定模型单行启动：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>claude --model claude-sonnet-5</code></pre>
+
+    </div>
+
+    <!-- ===== Tab 2: Codex ===== -->
+    <div id="pane-codex" class="tab-pane">
+
+        <p>Codex 提供桌面 App（新手首选）和 CLI 命令行两种使用方式，共享同一套中转配置。</p>
+
+        <h2>1. 安装 Codex</h2>
+
+        <h3>方式 A：桌面客户端 App（图形界面，新手首选）</h3>
+        <p>前往 <a href="https://openai.com/zh-Hans-CN/codex/" target="_blank">Codex 官方页面</a> 下载对应平台版本：</p>
+        <ul>
+            <li><strong>Windows：</strong>点击下载入口，跳转至 Microsoft Store 安装。</li>
+            <li><strong>macOS（Apple Silicon）：</strong>下载 Apple Silicon 版本（M1/M2/M3/M4）。</li>
+            <li><strong>macOS（Intel）：</strong>下载 Intel 版本（Intel Core i5/i7/i9）。</li>
+        </ul>
+        <p>安装完成后，打开 App → 选择本地项目目录 → 开始提问即可。</p>
+
+        <h3>方式 B：CLI 命令行工具</h3>
+
+        <h3 style="margin-top:12px;">macOS / Linux</h3>
+        <p>先确认已安装 Node.js：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>node -v
+npm -v</code></pre>
+        <p>通过 npm 安装（推荐）：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>npm install -g @openai/codex</code></pre>
+        <p>或通过 Homebrew 安装（已习惯 brew 的用户）：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>brew install --cask codex</code></pre>
+
+        <h3>Windows</h3>
+        <p>安装 Node.js 后，打开 PowerShell 执行：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>npm install -g @openai/codex</code></pre>
+        <p>验证安装：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>codex --version</code></pre>
+
+        <h2>2. 核心配置文件</h2>
+        <p>新建或编辑 <code>~/.codex/config.toml</code>（Windows 对应 <code>C:\Users\用户名\.codex\config.toml</code>）：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>model_provider = "724AI"
+model_reasoning_effort = "xhigh"
+disable_response_storage = true
+model_context_window = 1000000
+model_auto_compact_token_limit = 900000
+
+[model_providers.724AI]
+name = "724AI"
+wire_api = "responses"
+base_url = "https://api.724ai.org/v1"
+requires_openai_auth = true
+supports_websockets = false</code></pre>
+        <div class="warn-tip"><strong>注意：</strong><code>base_url</code> 必须以 <code>/v1</code> 结尾，即
+            <code>https://api.724ai.org/v1</code>。
+        </div>
+
+        <p>在同一目录新建 <code>~/.codex/auth.json</code>，写入专属 Key：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>{
+  "OPENAI_API_KEY": "sk-xxxxxxxxxxxxxxx"
+}</code></pre>
+
+        <h2>3. 启动</h2>
+        <p>进入项目目录后启动：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>codex</code></pre>
+
+        <h3>常用模型说明</h3>
+        <ul>
+            <li><code>gpt-5.6-sol</code>：复杂攻坚任务模型（推理能力强，消耗较大）</li>
+            <li><code>gpt-5.6-luna</code>：日常主力编码推荐（响应快、成本适中）</li>
+        </ul>
+        <p>启动时指定模型：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>codex --model gpt-5.6-sol</code></pre>
+        <p>已进入会话后，通过斜杠命令切换模型：</p>
+        <pre><button class="copy-btn" onclick="cp(this)">复制</button><code>/model gpt-5.6-luna</code></pre>
+
+    </div>
+
+    <!-- ===== Tab 3: WorkBuddy ===== -->
+    <div id="pane-workbuddy" class="tab-pane">
+
+        <p>WorkBuddy 支持兼容 OpenAI 协议的自定义模型，直接使用 724AI 通用接口地址即可。</p>
+
+        <h2>1. 下载与安装</h2>
+        <p>前往官网获取最新客户端：<a href="https://www.workbuddy.cn/" target="_blank">https://www.workbuddy.cn/</a></p>
+        <p>安装后打开客户端，点击左下角头像 &rarr; <strong>设置</strong> &rarr; <strong>模型</strong>，点击「添加模型」。</p>
+
+        <h2>2. 填写模型配置</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:25%;">配置项</th>
+                    <th>推荐填写值 / 说明</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>提供商</strong></td>
+                    <td>选择 <strong>自定义 / Custom</strong></td>
+                </tr>
+                <tr>
+                    <td><strong>接口地址</strong></td>
+                    <td><code>https://api.724ai.org/v1</code></td>
+                </tr>
+                <tr>
+                    <td><strong>API Key</strong></td>
+                    <td>填写从 724AI 获取的专属密钥（<code>sk-...</code>）</td>
+                </tr>
+                <tr>
+                    <td><strong>模型名称</strong></td>
+                    <td>填写可用模型名称，例如 <code>gpt-5.6-sol</code></td>
+                </tr>
+                <tr>
+                    <td><strong>高级配置</strong></td>
+                    <td>建议勾选「工具调用」与「图片输入」</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>3. 配置参考截图</h2>
+        <p>WorkBuddy「编辑模型」窗口的实际配置参考图示（点击可放大查看）：</p>
+        <figure>
+            <img src="./workbuddy-model-config-v2.png" alt="WorkBuddy 模型配置示例"
+                onclick="openLightbox('./workbuddy-model-config-v2.png')">
+            <figcaption>图：WorkBuddy 自定义模型配置窗口示例（设置 &rarr; 模型 &rarr; 编辑模型）</figcaption>
+        </figure>
+
+        <div class="pro-tip">保存配置后，在聊天窗口顶部的模型下拉菜单中切换至您添加的自定义模型即可正常使用。</div>
+
+        <h3>常用模型说明</h3>
+        <ul>
+            <li><code>gpt-5.6-sol</code>：复杂攻坚任务模型（推理能力强，消耗较大）</li>
+            <li><code>gpt-5.6-luna</code>：日常主力编码推荐（响应快、成本适中）</li>
+        </ul>
+        <p>在模型名称一栏填写对应模型名即可使用。</p>
+
+    </div>
+
+    <footer>
+        <span>© 2026 内部工作台 · 研发效能团队</span>
+        <div><a href="./index.html">← 返回首页</a> · <a href="./chatbi.html">ChatBI 分析</a></div>
+    </footer>
+
+    <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+        <img id="lightbox-img" src="" alt="放大预览">
+    </div>
+
+    <script>
+        function switchTab(key, btn) {
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('pane-' + key).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        function cp(btn) {
+            const code = btn.nextElementSibling.innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = '已复制';
+                btn.classList.add('ok');
+                setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('ok'); }, 1500);
+            });
+        }
+
+        function openLightbox(src) {
+            document.getElementById('lightbox-img').src = src;
+            document.getElementById('lightbox').classList.add('active');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+        }
+
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+    </script>
+</body>
+
+</html>
