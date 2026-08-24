@@ -64,10 +64,27 @@ const fetchDetail = async () => {
   loading.value = false
 }
 
-// 解析 Markdown 为 HTML
+// 解析 Markdown 为 HTML (自动消除首行重复的一级标题，避免双重标题与双重下划线)
 const renderedHtml = computed(() => {
   if (!announcement.value?.detail_md) return ''
-  return marked.parse(announcement.value.detail_md) as string
+  let md = announcement.value.detail_md.trim()
+  
+  // 检查首行是否包含一级标题
+  const firstLineMatch = md.match(/^#\s+(.+)$/m)
+  if (firstLineMatch) {
+    const mdTitle = firstLineMatch[1].trim()
+    const contentTitle = (announcement.value.content || '').trim()
+    // 若 Markdown 首行标题与公告标题含义相同，剥离首行避免重复渲染
+    if (contentTitle && (
+      contentTitle.includes(mdTitle) || 
+      mdTitle.includes(contentTitle) ||
+      contentTitle.replace(/^[^\w\u4e00-\u9fa5]+/, '').trim() === mdTitle.replace(/^[^\w\u4e00-\u9fa5]+/, '').trim()
+    )) {
+      md = md.replace(/^#\s+.+(\r?\n|$)/, '').trim()
+    }
+  }
+
+  return marked.parse(md) as string
 })
 
 // 为动态 Markdown 中的所有代码块增强一键复制按钮
@@ -114,35 +131,36 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto space-y-8 pb-16">
-    <!-- 面包屑导航 (简洁利落，不塞过长标题) -->
-    <div class="flex items-center space-x-2 text-xs font-mono text-muted-foreground">
+  <div class="max-w-4xl mx-auto space-y-7 pb-16 antialiased">
+    <!-- 面包屑导航 (极简无衬线，字迹饱满无毛刺) -->
+    <nav class="flex items-center space-x-2 text-xs text-muted-foreground select-none">
       <router-link to="/" class="hover:text-foreground hover:underline transition-colors">
         {{ siteConfig.site_name }}
       </router-link>
-      <span>/</span>
-      <span class="text-foreground">公告详情</span>
-    </div>
+      <span class="text-muted-foreground/40 font-light">/</span>
+      <span class="text-foreground font-medium">公告详情</span>
+    </nav>
 
     <!-- 加载中骨架 -->
     <div v-if="loading" class="space-y-4 animate-pulse">
-      <div class="h-10 w-2/3 bg-muted rounded"></div>
-      <div class="h-4 w-1/2 bg-muted rounded"></div>
+      <div class="h-9 w-2/3 bg-muted rounded"></div>
+      <div class="h-4 w-1/3 bg-muted rounded"></div>
       <div class="h-64 w-full bg-muted/40 rounded-lg"></div>
     </div>
 
     <!-- 1. 动态渲染后台配置的 Markdown 内容 -->
     <div v-else-if="announcement?.detail_md" class="space-y-6">
-      <div class="space-y-2 border-b border-border pb-4">
-        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">
+      <!-- 统一出版物级大标题 (单一纯粹，避免多重重复下划线) -->
+      <div class="space-y-2.5 border-b border-border/70 pb-4">
+        <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground leading-snug">
           {{ announcement.content }}
         </h1>
-        <div class="flex items-center space-x-3 text-xs text-muted-foreground font-mono">
-          <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-secondary text-foreground text-[10px]">
-            官方公告
+        <div class="flex items-center space-x-3 text-xs text-muted-foreground">
+          <span class="inline-flex items-center px-1.5 py-0.5 rounded border border-border/80 text-muted-foreground text-[10px] font-medium">
+            公告详情
           </span>
-          <span v-if="announcement.created_at">
-            发布于 {{ new Date(announcement.created_at).toLocaleDateString() }}
+          <span v-if="announcement.created_at" class="font-mono text-[11px]">
+            {{ new Date(announcement.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }) }}
           </span>
         </div>
       </div>
@@ -157,11 +175,11 @@ onMounted(() => {
     <!-- 2. 若无后台自定义 Markdown，则降级展示内置标准 AI 接入指南 -->
     <div v-else class="space-y-8 animate-in fade-in-0 duration-150">
       <!-- 页面大标题与导语 -->
-      <div class="space-y-2">
-        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">
+      <div class="space-y-2 border-b border-border/70 pb-4">
+        <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground leading-snug">
           {{ announcement?.content || 'AI 编程助手接入指南' }}
         </h1>
-        <p class="text-sm text-muted-foreground leading-relaxed">
+        <p class="text-xs sm:text-sm text-muted-foreground leading-relaxed">
           团队统一接入 724AI 镜像中转网络，为 Claude Code、Codex 及 WorkBuddy 客户端提供稳定免翻墙的极速编码服务。
         </p>
       </div>
@@ -406,7 +424,14 @@ onMounted(() => {
 </template>
 
 <style>
-/* 针对 Markdown 解析内容的极简高质感排版 */
+/* 针对 Markdown 解析内容的极简高质感排版 (纯粹无毛刺抗锯齿) */
+.markdown-body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  color: var(--foreground);
+}
+
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,
@@ -415,15 +440,18 @@ onMounted(() => {
   color: var(--foreground);
   margin-top: 1.5em;
   margin-bottom: 0.5em;
+  letter-spacing: -0.015em;
+  line-height: 1.35;
 }
-.markdown-body h1 { font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
-.markdown-body h2 { font-size: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
-.markdown-body h3 { font-size: 1.05rem; }
+.markdown-body h1 { font-size: 1.35rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+.markdown-body h2 { font-size: 1.15rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+.markdown-body h3 { font-size: 1rem; }
 
 .markdown-body p {
   margin-top: 0.5em;
   margin-bottom: 0.8em;
   color: var(--muted-foreground);
+  line-height: 1.7;
 }
 
 .markdown-body pre {
@@ -460,6 +488,7 @@ onMounted(() => {
 
 .markdown-body li {
   margin-bottom: 0.3em;
+  line-height: 1.6;
 }
 
 .markdown-body table {
@@ -483,11 +512,10 @@ onMounted(() => {
 }
 
 .markdown-body blockquote {
-  border-left: 3px solid var(--primary);
+  border-left: 3px solid var(--border);
   padding-left: 1rem;
   margin: 1em 0;
   color: var(--muted-foreground);
-  font-style: italic;
 }
 
 .markdown-body a {
