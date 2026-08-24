@@ -300,13 +300,20 @@ onUnmounted(() => {
               {{ extractHostname(link.url) }}
             </p>
 
-            <div class="mt-2.5 flex items-center space-x-2">
-              <span class="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-secondary/80 text-muted-foreground group-hover:text-foreground transition-colors">
+            <!-- 底部：分类 (左) + 实时延迟健康指示 (右) -->
+            <div class="mt-3.5 pt-2 border-t border-border/40 flex items-center justify-between text-xs">
+              <span class="text-[11px] text-muted-foreground font-medium group-hover:text-foreground transition-colors truncate">
                 {{ link.category || '默认' }}
               </span>
-              <span v-if="healthStatusMap[link.id]?.healthy" class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">
-                {{ healthStatusMap[link.id].latency_ms }}ms
-              </span>
+
+              <div 
+                v-if="healthStatusMap[link.id]?.healthy"
+                class="inline-flex items-center space-x-1.5 text-[10px] font-mono text-muted-foreground/70 shrink-0"
+                :title="`连通正常 · 响应时间 ${healthStatusMap[link.id].latency_ms}ms`"
+              >
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                <span>{{ healthStatusMap[link.id].latency_ms }}ms</span>
+              </div>
             </div>
           </div>
 
