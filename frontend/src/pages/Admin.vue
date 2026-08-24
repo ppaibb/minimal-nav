@@ -503,60 +503,62 @@ onMounted(() => {
 
     <!-- 🔓 已解锁管理状态 (完全符合 shadcn-admin 直线排版) -->
     <div v-else class="space-y-6">
-      <!-- 页面 Header: 标题 + Tabs 切换 + 退出按钮 -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
+      <!-- 页面 Header: 标题 + 退出按钮 -->
+      <div class="flex items-center justify-between gap-4">
         <div>
           <h2 class="text-2xl font-bold tracking-tight text-foreground">后台资源管理</h2>
           <p class="text-xs text-muted-foreground mt-0.5">维护团队内部索引、公告通知、服务健康检测及数据备份</p>
         </div>
 
-        <div class="flex items-center space-x-3">
-          <!-- 正统 shadcn TabsList -->
-          <div class="inline-flex h-9 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
-            <button
-              @click="activeTab = 'links'"
-              :class="[
-                'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-xs font-medium ring-offset-background transition-all focus-visible:outline-none cursor-pointer',
-                activeTab === 'links'
-                  ? 'bg-background text-foreground shadow-xs'
-                  : 'hover:text-foreground'
-              ]"
-            >
-              导航链接 ({{ links.length }})
-            </button>
-            <button
-              @click="activeTab = 'announcements'"
-              :class="[
-                'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-xs font-medium ring-offset-background transition-all focus-visible:outline-none cursor-pointer',
-                activeTab === 'announcements'
-                  ? 'bg-background text-foreground shadow-xs'
-                  : 'hover:text-foreground'
-              ]"
-            >
-              公告通知 ({{ announcements.length }})
-            </button>
-            <button
-              @click="activeTab = 'backup'"
-              :class="[
-                'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-xs font-medium ring-offset-background transition-all focus-visible:outline-none cursor-pointer',
-                activeTab === 'backup'
-                  ? 'bg-background text-foreground shadow-xs'
-                  : 'hover:text-foreground'
-              ]"
-            >
-              数据备份与导入
-            </button>
-          </div>
+        <!-- 退出按钮 -->
+        <button 
+          @click="handleLogout"
+          class="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-3 transition-colors cursor-pointer"
+          title="锁定管理后台"
+        >
+          退出管理
+        </button>
+      </div>
 
-          <!-- 退出按钮 -->
-          <button 
-            @click="handleLogout"
-            class="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 transition-colors cursor-pointer"
-            title="锁定管理后台"
-          >
-            退出
-          </button>
-        </div>
+      <!-- 🌟 纯净直线下划线导航 (彻底去除外层包裹卡片，经典瑞士排版) -->
+      <div class="flex items-center space-x-6 border-b border-border text-sm">
+        <button
+          @click="activeTab = 'links'"
+          :class="[
+            'pb-2.5 font-medium transition-all cursor-pointer border-b-2 -mb-px flex items-center space-x-2 text-xs sm:text-sm',
+            activeTab === 'links'
+              ? 'border-foreground text-foreground font-semibold'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          ]"
+        >
+          <span>导航链接</span>
+          <span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{{ links.length }}</span>
+        </button>
+
+        <button
+          @click="activeTab = 'announcements'"
+          :class="[
+            'pb-2.5 font-medium transition-all cursor-pointer border-b-2 -mb-px flex items-center space-x-2 text-xs sm:text-sm',
+            activeTab === 'announcements'
+              ? 'border-foreground text-foreground font-semibold'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          ]"
+        >
+          <span>公告通知</span>
+          <span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{{ announcements.length }}</span>
+        </button>
+
+        <button
+          @click="activeTab = 'backup'"
+          :class="[
+            'pb-2.5 font-medium transition-all cursor-pointer border-b-2 -mb-px flex items-center space-x-2 text-xs sm:text-sm',
+            activeTab === 'backup'
+              ? 'border-foreground text-foreground font-semibold'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          ]"
+        >
+          <span>数据备份与导入</span>
+        </button>
       </div>
 
       <!-- 全局消息提示条 -->
