@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import CommandPalette from './components/CommandPalette.vue'
+import { useSiteConfig } from './utils/useSiteConfig'
+
+const { siteConfig, loadSiteConfig } = useSiteConfig()
 
 interface LinkItem {
   id: number
@@ -112,6 +115,7 @@ const handleClickOutside = (e: MouseEvent) => {
 }
 
 onMounted(() => {
+  loadSiteConfig()
   const saved = (localStorage.getItem('theme_mode') as ThemeMode) || 'system'
   applyTheme(saved)
   fetchGlobalLinks()
@@ -130,10 +134,10 @@ onUnmounted(() => {
 
 <template>
   <div class="min-h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200 selection:bg-zinc-200 dark:selection:bg-zinc-800">
-    <!-- 🏛️ 极致极简顶栏 (左侧 Logo + Minimal Nav，右侧 太阳皮肤切换 + 齿轮设置) -->
+    <!-- 🏛️ 极致极简顶栏 (左侧 Logo + 自定义站点名称，右侧 太阳皮肤切换 + 齿轮设置) -->
     <header class="border-b border-border/80 sticky top-0 z-40 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 transition-colors">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
-        <!-- 左侧: 仅保留 shadcn 官方矢量 Logo 图标 + Minimal Nav 标题 -->
+        <!-- 左侧: 仅保留 shadcn 官方矢量 Logo 图标 + 站点名称 -->
         <router-link to="/" class="flex items-center space-x-2.5 group select-none">
           <!-- shadcn 官方矢量 Logo 图标 -->
           <div class="w-6 h-6 rounded-md bg-foreground text-background flex items-center justify-center p-1 shadow-xs group-hover:opacity-90 transition-opacity shrink-0">
@@ -145,7 +149,7 @@ onUnmounted(() => {
           </div>
 
           <span class="font-semibold text-sm sm:text-base tracking-tight text-foreground">
-            Minimal Nav
+            {{ siteConfig.site_name }}
           </span>
         </router-link>
 

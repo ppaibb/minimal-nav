@@ -131,6 +131,10 @@ const handleIconError = (e: Event) => {
   }
 }
 
+import { useSiteConfig } from '../utils/useSiteConfig'
+
+const { siteConfig, loadSiteConfig } = useSiteConfig()
+
 // 快捷键 Ctrl+K / Cmd+K 快速聚焦搜索框
 const handleKeyDown = (e: KeyboardEvent) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -140,6 +144,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
 }
 
 onMounted(() => {
+  loadSiteConfig()
   fetchAnnouncements()
   fetchLinks()
   window.addEventListener('keydown', handleKeyDown)
@@ -156,10 +161,10 @@ onUnmounted(() => {
     <section class="pb-2">
       <div>
         <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-          企业效率与工具导航
+          {{ siteConfig.site_name }}
         </h1>
-        <p class="text-sm sm:text-base text-muted-foreground mt-2 max-w-2xl leading-relaxed">
-          统一汇聚团队核心工具、部署控制台、设计协作及文档中心，即时检索快速直达。
+        <p v-if="siteConfig.site_desc" class="text-sm sm:text-base text-muted-foreground mt-2 max-w-2xl leading-relaxed">
+          {{ siteConfig.site_desc }}
         </p>
       </div>
     </section>

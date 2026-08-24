@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useSiteConfig } from '../utils/useSiteConfig'
 
 interface LinkItem {
   id: number
@@ -17,6 +18,10 @@ interface AnnouncementItem {
   created_at: string
 }
 
+const { siteConfig, loadSiteConfig, updateSiteConfig } = useSiteConfig()
+const editSettingsForm = ref({ site_name: '', site_desc: '' })
+const saveSettingsLoading = ref(false)
+
 const isAuthenticated = ref(false)
 const inputPassword = ref('')
 const authError = ref('')
@@ -25,11 +30,27 @@ const announcements = ref<AnnouncementItem[]>([])
 
 const newLink = ref({ title: '', url: '', category: '开发协作', icon: '' })
 const newAnnouncement = ref({ content: '', detail_md: '', is_active: true })
-const activeTab = ref<'links' | 'announcements' | 'backup'>('links')
+const activeTab = ref<'links' | 'announcements' | 'backup' | 'settings'>('links')
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 const faviconLoading = ref(false)
 const pingLoading = ref(false)
 const pingResults = ref<Record<number, { healthy: boolean; latency_ms: number; status_code: number; error: string }>>({})
+
+// 保存系统设置
+const handleSaveSettings = async () => {
+  if (!editSettingsForm.value.site_name.trim()) {
+    showMessage('网站名称不能为空', 'error')
+    return
+  }
+  saveSettingsLoading.value = true
+  const res = await updateSiteConfig(editSettingsForm.value, getToken())
+  saveSettingsLoading.value = false
+  if (res.success) {
+    showMessage('网站基本信息已保存并即时生效')
+  } else {
+    showMessage(res.msg || '保存失败', 'error')
+  }
+}
 
 // ✏️ 编辑模态框状态
 const isEditLinkModalOpen = ref(false)
@@ -159,8 +180,13 @@ const loadData = async () => {
   try {
     const [linksRes, annRes] = await Promise.all([
       fetch('/api/links'),
-      fetch('/api/announcements')
+      fetch('/api/announcements'),
+      loadSiteConfig()
     ])
+    editSettingsForm.value = {
+      site_name: siteConfig.value.site_name,
+      site_desc: siteConfig.value.site_desc
+    }
     if (linksRes.ok) {
       const data = await linksRes.json()
       if (data.code === 0) links.value = data.data || []
@@ -592,6 +618,18 @@ onMounted(() => {
         >
           <span>数据备份与导入</span>
         </button>
+
+        <button
+          @click="activeTab = 'settings'"
+          :class="[
+            'pb-2.5 font-medium transition-all cursor-pointer border-b-2 -mb-px flex items-center space-x-2 text-xs sm:text-sm',
+            activeTab === 'settings'
+              ? 'border-foreground text-foreground font-semibold'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          ]"
+        >
+          <span>系统设置</span>
+        </button>
       </div>
 
       <!-- 全局消息提示条 -->
@@ -943,6 +981,50 @@ onMounted(() => {
               导入 JSON 恢复
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- 4. 系统站点设置 -->
+      <div v-if="activeTab === 'settings'" class="max-w-2xl space-y-6">
+        <div class="rounded-lg border border-border bg-card p-5 space-y-5">
+          <div class="space-y-1">
+            <h3 class="text-base font-semibold text-foreground">网站基本信息设置</h3>
+            <p class="text-xs text-muted-foreground">自定义前台首页大标题、面包屑导航名称及全站副标题描述</p>
+          </div>
+
+          <form @submit.prevent="handleSaveSettings" class="space-y-4">
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-foreground">网站名称 / 首页大标题</label>
+              <input 
+                v-model="editSettingsForm.site_name" 
+                placeholder="例如: Minimal Nav, 研发团队内部工作台" 
+                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                required
+              />
+              <p class="text-[11px] text-muted-foreground">展示在浏览器标签页、前台首页大标题、内容页面包屑及底栏。</p>
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-foreground">网站描述 / 副标题 (可选)</label>
+              <textarea 
+                v-model="editSettingsForm.site_desc" 
+                placeholder="例如: 统一汇聚团队核心工具、部署控制台、设计协作及文档中心，即时检索快速直达。" 
+                rows="3"
+                class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y leading-relaxed"
+              ></textarea>
+              <p class="text-[11px] text-muted-foreground">展示在首页大标题下方，留空则不显示。</p>
+            </div>
+
+            <div class="pt-2 border-t border-border flex justify-end">
+              <button 
+                type="submit" 
+                :disabled="saveSettingsLoading"
+                class="inline-flex items-center justify-center rounded-md text-xs sm:text-sm font-medium transition-colors h-9 px-5 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 cursor-pointer disabled:opacity-50"
+              >
+                {{ saveSettingsLoading ? '正在保存...' : '保存系统设置' }}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

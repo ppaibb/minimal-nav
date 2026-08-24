@@ -36,8 +36,8 @@ func InitDB(dbPath string) {
 		log.Fatalf("连接 SQLite 数据库失败: %v", err)
 	}
 
-	// 自动迁移两张表
-	err = DB.AutoMigrate(&models.Link{}, &models.Announcement{})
+	// 自动迁移数据表
+	err = DB.AutoMigrate(&models.Link{}, &models.Announcement{}, &models.Setting{})
 	if err != nil {
 		log.Fatalf("数据表迁移失败: %v", err)
 	}

@@ -2,8 +2,10 @@
 import { ref, onMounted, computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { marked } from 'marked'
+import { useSiteConfig } from '../utils/useSiteConfig'
 
 const route = useRoute()
+const { siteConfig, loadSiteConfig } = useSiteConfig()
 const loading = ref(true)
 const announcement = ref<{
   id?: number
@@ -102,6 +104,7 @@ watch(renderedHtml, () => {
 })
 
 onMounted(() => {
+  loadSiteConfig()
   fetchDetail().then(() => {
     if (renderedHtml.value) {
       enhanceCodeBlocks()
@@ -112,15 +115,13 @@ onMounted(() => {
 
 <template>
   <div class="max-w-4xl mx-auto space-y-8 pb-16">
-    <!-- 面包屑导航 -->
+    <!-- 面包屑导航 (简洁利落，不塞过长标题) -->
     <div class="flex items-center space-x-2 text-xs font-mono text-muted-foreground">
       <router-link to="/" class="hover:text-foreground hover:underline transition-colors">
-        内部工作台
+        {{ siteConfig.site_name }}
       </router-link>
       <span>/</span>
-      <span class="text-foreground">
-        {{ announcement?.content || '内容详情与指南' }}
-      </span>
+      <span class="text-foreground">公告详情</span>
     </div>
 
     <!-- 加载中骨架 -->
@@ -133,12 +134,17 @@ onMounted(() => {
     <!-- 1. 动态渲染后台配置的 Markdown 内容 -->
     <div v-else-if="announcement?.detail_md" class="space-y-6">
       <div class="space-y-2 border-b border-border pb-4">
-        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">
           {{ announcement.content }}
         </h1>
-        <p v-if="announcement.created_at" class="text-xs font-mono text-muted-foreground">
-          发布时间: {{ new Date(announcement.created_at).toLocaleString() }}
-        </p>
+        <div class="flex items-center space-x-3 text-xs text-muted-foreground font-mono">
+          <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-secondary text-foreground text-[10px]">
+            官方公告
+          </span>
+          <span v-if="announcement.created_at">
+            发布于 {{ new Date(announcement.created_at).toLocaleDateString() }}
+          </span>
+        </div>
       </div>
 
       <!-- 纯正出版物风格 Markdown 渲染容器 -->
@@ -152,7 +158,7 @@ onMounted(() => {
     <div v-else class="space-y-8 animate-in fade-in-0 duration-150">
       <!-- 页面大标题与导语 -->
       <div class="space-y-2">
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">
           {{ announcement?.content || 'AI 编程助手接入指南' }}
         </h1>
         <p class="text-sm text-muted-foreground leading-relaxed">
@@ -391,7 +397,7 @@ onMounted(() => {
 
     <!-- 底部返回与团队标识 -->
     <div class="pt-8 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-      <span>© 2026 内部工作台 · 研发效能团队</span>
+      <span>© {{ new Date().getFullYear() }} {{ siteConfig.site_name }}</span>
       <router-link to="/" class="hover:text-foreground hover:underline transition-colors">
         ← 返回首页导航
       </router-link>

@@ -73,6 +73,10 @@ func registerRoutes(r *gin.RouterGroup) {
 		backupGroup.POST("/import", handlers.ImportBackup)
 		backupGroup.POST("/import-bookmarks", handlers.ImportBookmarks)
 	}
+
+	// 6. 系统站点设置 (读公开，写受口令保护)
+	r.GET("/settings", handlers.GetSettings)
+	r.PUT("/settings", handlers.AuthMiddleware(), handlers.UpdateSettings)
 }
 
 func main() {
