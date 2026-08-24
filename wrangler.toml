@@ -1,0 +1,13 @@
+name = "minimal-nav"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+pages_build_output_dir = "frontend/dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "minimal-nav-db"
+database_id = "xxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" # 部署时请替换为通过 `wrangler d1 create minimal-nav-db` 生成的实际 ID
+
+[vars]
+ADMIN_PASSWORD = "admin123"
