@@ -1,48 +1,37 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { useSiteConfig } from '../utils/useSiteConfig'
+
+interface AnnouncementItem {
+  id: number
+  content: string
+  detail_md?: string
+  is_active: boolean
+  created_at: string
+}
 
 interface LinkItem {
   id: number
   title: string
   url: string
+  icon: string
   category: string
-  icon?: string
-  latency_ms?: number
-  healthy?: boolean
-}
-
-interface AnnouncementItem {
-  id: number
-  content: string
-  is_active: boolean
-  created_at: string
+  sort_order: number
 }
 
 const announcements = ref<AnnouncementItem[]>([])
-const isAnnouncementsExpanded = ref(false)
-const DEFAULT_ANNOUNCEMENT_LIMIT = 3
-
-// 默认仅显示最新 3 条，展开后显示全部
-const displayedAnnouncements = computed(() => {
-  if (isAnnouncementsExpanded.value || announcements.value.length <= DEFAULT_ANNOUNCEMENT_LIMIT) {
-    return announcements.value
-  }
-  return announcements.value.slice(0, DEFAULT_ANNOUNCEMENT_LIMIT)
-})
-
-// 剩余未展开的公告数量
-const remainingAnnouncementsCount = computed(() => {
-  return Math.max(0, announcements.value.length - DEFAULT_ANNOUNCEMENT_LIMIT)
-})
-
-const links = ref<LinkItem[]>([])
+const links = ref<LinkItem[]>() || ref<LinkItem[]>([])
 const loading = ref(true)
-const selectedCategory = ref<string>('all')
-const searchQuery = ref<string>('')
+const searchQuery = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
+
+// 响应式健康状态存储 { [linkId: number]: { healthy: boolean, latency_ms: number } }
 const healthStatusMap = ref<Record<number, { healthy: boolean; latency_ms: number }>>({})
 
-// 获取生效公告
+// 分类管理
+const selectedCategory = ref<string>('all')
+
+// 获取公告列表
 const fetchAnnouncements = async () => {
   try {
     const res = await fetch('/api/announcements/active')
@@ -88,7 +77,7 @@ const pingClient = async (rawUrl: string, timeoutMs = 3000): Promise<{ healthy: 
   const startTime = performance.now()
 
   try {
-    // 使用 no-cors 模式向目标地址发起轻量探测 (即使跨域 opaque 响应，只要能连通即可精确测得本地网络 RTT 延迟)
+    // 使用 no-cors 模式向目标地址发起轻量探测
     await fetch(targetUrl, {
       method: 'GET',
       mode: 'no-cors',
@@ -98,9 +87,8 @@ const pingClient = async (rawUrl: string, timeoutMs = 3000): Promise<{ healthy: 
     clearTimeout(timeoutId)
     const latency = Math.round(performance.now() - startTime)
     return { healthy: true, latency_ms: latency }
-  } catch (err) {
+  } catch {
     clearTimeout(timeoutId)
-    // 如果 fetch 失败或被拦截，尝试轻量级的 Image ping (针对部分阻止 no-cors GET 的内网站点)
     try {
       const imgPing = await new Promise<number>((resolve, reject) => {
         const img = new Image()
@@ -111,10 +99,9 @@ const pingClient = async (rawUrl: string, timeoutMs = 3000): Promise<{ healthy: 
         }
         img.onerror = () => {
           clearTimeout(timer)
-          // 产生 onerror 说明目标服务器已连通并返回了非图片响应 (如 HTML 404/200)
           resolve(Math.round(performance.now() - startTime))
         }
-        img.src = `${targetUrl.replace(/\/$/, '')}/favicon.ico?_t=${Date.now()}`
+        img.src = `${targetUrl.replace(/\/+$/, '')}/favicon.ico?_t=${Date.now()}`
       })
       return { healthy: true, latency_ms: imgPing }
     } catch {
@@ -126,7 +113,6 @@ const pingClient = async (rawUrl: string, timeoutMs = 3000): Promise<{ healthy: 
 // 批量轻量探测当前所有导航链接
 const probeLinksHealth = async (items: LinkItem[]) => {
   if (!items || items.length === 0) return
-  // 并发轻量探测
   const tasks = items.map(async (item) => {
     const res = await pingClient(item.url)
     healthStatusMap.value[item.id] = res
@@ -141,7 +127,7 @@ const PROBE_INTERVAL_MS = 30000
 const startPeriodicProbe = () => {
   stopPeriodicProbe()
   probeTimer = setInterval(() => {
-    if (document.visibilityState === 'visible' && links.value.length > 0) {
+    if (document.visibilityState === 'visible' && links.value && links.value.length > 0) {
       probeLinksHealth(links.value)
     }
   }, PROBE_INTERVAL_MS)
@@ -157,7 +143,7 @@ const stopPeriodicProbe = () => {
 // 当用户切走标签页时暂停测速，切回前台时立即刷新一次
 const handleVisibilityChange = () => {
   if (document.visibilityState === 'visible') {
-    if (links.value.length > 0) {
+    if (links.value && links.value.length > 0) {
       probeLinksHealth(links.value)
     }
     startPeriodicProbe()
@@ -208,14 +194,17 @@ const getInitialColorClass = (title: string, category = '') => {
 // 计算所有分类
 const categories = computed(() => {
   const cats = new Set<string>()
-  links.value.forEach(link => {
-    if (link.category) cats.add(link.category)
-  })
+  if (links.value) {
+    links.value.forEach(link => {
+      if (link.category) cats.add(link.category)
+    })
+  }
   return Array.from(cats)
 })
 
 // 根据搜索和分类过滤链接
 const filteredLinks = computed(() => {
+  if (!links.value) return []
   return links.value.filter(link => {
     const matchCat = selectedCategory.value === 'all' || link.category === selectedCategory.value
     const matchSearch = !searchQuery.value.trim() || 
@@ -235,41 +224,47 @@ const handleIconError = (e: Event) => {
   }
 }
 
-import { useSiteConfig } from '../utils/useSiteConfig'
-
 const { siteConfig, loadSiteConfig } = useSiteConfig()
 
-// 🌟 公告展示模式：'board' (瑞士通知板 A) | 'broadcast' (Vercel 单行广播条 B)
-const announcementViewMode = ref<'board' | 'broadcast'>((localStorage.getItem('announcement_view_mode') as 'board' | 'broadcast') || 'board')
-const setAnnouncementViewMode = (mode: 'board' | 'broadcast') => {
-  announcementViewMode.value = mode
-  localStorage.setItem('announcement_view_mode', mode)
+// 🌟 公告 3 行多页滑动与自动轮播系统
+const ANNOUNCE_PAGE_SIZE = 3
+const currentAnnouncePage = ref(0)
+const isAnnounceHovered = ref(false)
+
+const announcementPages = computed(() => {
+  const pages: AnnouncementItem[][] = []
+  for (let i = 0; i < announcements.value.length; i += ANNOUNCE_PAGE_SIZE) {
+    pages.push(announcements.value.slice(i, i + ANNOUNCE_PAGE_SIZE))
+  }
+  return pages
+})
+
+const totalAnnouncePages = computed(() => announcementPages.value.length || 1)
+
+const nextAnnouncePage = () => {
+  if (totalAnnouncePages.value <= 1) return
+  currentAnnouncePage.value = (currentAnnouncePage.value + 1) % totalAnnouncePages.value
 }
 
-// 广播条轮播索引与控制器
-const broadcastIndex = ref(0)
-const nextBroadcast = () => {
-  if (announcements.value.length === 0) return
-  broadcastIndex.value = (broadcastIndex.value + 1) % announcements.value.length
-}
-const prevBroadcast = () => {
-  if (announcements.value.length === 0) return
-  broadcastIndex.value = (broadcastIndex.value - 1 + announcements.value.length) % announcements.value.length
+const prevAnnouncePage = () => {
+  if (totalAnnouncePages.value <= 1) return
+  currentAnnouncePage.value = (currentAnnouncePage.value - 1 + totalAnnouncePages.value) % totalAnnouncePages.value
 }
 
-let broadcastTimer: ReturnType<typeof setInterval> | null = null
-const startBroadcastAutoPlay = () => {
-  stopBroadcastAutoPlay()
-  broadcastTimer = setInterval(() => {
-    if (announcementViewMode.value === 'broadcast' && announcements.value.length > 1) {
-      nextBroadcast()
+// 自动翻页定时器 (6 秒自动切页，Hover 时智能暂停)
+let announceTimer: ReturnType<typeof setInterval> | null = null
+const startAnnounceAutoPlay = () => {
+  stopAnnounceAutoPlay()
+  announceTimer = setInterval(() => {
+    if (!isAnnounceHovered.value && totalAnnouncePages.value > 1) {
+      nextAnnouncePage()
     }
-  }, 5000)
+  }, 6000)
 }
-const stopBroadcastAutoPlay = () => {
-  if (broadcastTimer) {
-    clearInterval(broadcastTimer)
-    broadcastTimer = null
+const stopAnnounceAutoPlay = () => {
+  if (announceTimer) {
+    clearInterval(announceTimer)
+    announceTimer = null
   }
 }
 
@@ -286,14 +281,14 @@ onMounted(() => {
   fetchAnnouncements()
   fetchLinks()
   startPeriodicProbe()
-  startBroadcastAutoPlay()
+  startAnnounceAutoPlay()
   window.addEventListener('keydown', handleKeyDown)
   document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
   stopPeriodicProbe()
-  stopBroadcastAutoPlay()
+  stopAnnounceAutoPlay()
   window.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
@@ -301,59 +296,92 @@ onUnmounted(() => {
 
 <template>
   <div class="space-y-6 sm:space-y-8">
-    <!-- 🌟 顶部单行公告广播条 (无卡片包裹 · 纯净通栏 · 黄金字阶 12~13px) -->
-    <section v-if="announcements.length > 0" class="py-0.5 transition-all duration-200">
-      <div class="flex items-center justify-between gap-3 min-w-0">
-        <!-- 左侧：经典清晰加粗公告标签 + 高清适中字阶轮播 -->
-        <div class="flex items-center space-x-2.5 min-w-0 flex-1">
-          <span class="px-1.5 py-0.5 text-[11px] font-bold rounded bg-secondary text-foreground shrink-0 select-none">
-            公告
-          </span>
-
-          <div class="min-w-0 flex-1 relative overflow-hidden h-5 flex items-center">
-            <router-link
-              v-if="announcements[broadcastIndex]"
-              :key="announcements[broadcastIndex].id"
-              :to="'/docs/' + announcements[broadcastIndex].id"
-              class="tracking-tight text-xs sm:text-[13px] font-medium text-foreground/90 hover:text-foreground hover:underline transition-all truncate cursor-pointer font-sans block"
-              :title="'查看详情: ' + announcements[broadcastIndex].content"
+    <!-- 🌟 顶部 3 行垂直分页轮播公告栏 (无卡片包裹 · 纯净通栏 · 自动轮播与分页) -->
+    <section 
+      v-if="announcements.length > 0" 
+      class="py-1 transition-all duration-200"
+      @mouseenter="isAnnounceHovered = true"
+      @mouseleave="isAnnounceHovered = false"
+    >
+      <div class="space-y-2">
+        <!-- 3 行垂直列表 (无卡片包裹，纯净通栏，带平滑淡入淡出动效) -->
+        <transition 
+          mode="out-in" 
+          enter-active-class="transition duration-200 ease-out" 
+          enter-from-class="opacity-0 translate-y-1" 
+          enter-to-class="opacity-100 translate-y-0" 
+          leave-active-class="transition duration-150 ease-in" 
+          leave-from-class="opacity-100 translate-y-0" 
+          leave-to-class="opacity-0 -translate-y-1"
+        >
+          <div :key="currentAnnouncePage" class="space-y-2.5">
+            <div 
+              v-for="item in (announcementPages[currentAnnouncePage] || [])" 
+              :key="item.id" 
+              class="flex items-center justify-between gap-3 group py-0.5"
             >
-              {{ announcements[broadcastIndex].content }}
-            </router-link>
-          </div>
-        </div>
+              <!-- 左侧：加粗公告标签 + 标题 -->
+              <div class="flex items-center space-x-3 min-w-0 flex-1">
+                <span class="px-2 py-0.5 text-xs font-bold rounded bg-secondary text-foreground shrink-0 select-none">
+                  公告
+                </span>
 
-        <!-- 右侧：翻页控制器 + 详情查看 -->
-        <div class="flex items-center space-x-2 shrink-0">
-          <!-- 上一条 / 下一条微控制器 -->
-          <div class="flex items-center space-x-1 text-xs text-muted-foreground font-mono">
+                <router-link
+                  :to="'/docs/' + item.id"
+                  class="tracking-tight text-xs sm:text-[13px] font-medium text-foreground/90 group-hover:text-foreground group-hover:underline transition-colors truncate cursor-pointer font-sans"
+                  :title="'查看详情: ' + item.content"
+                >
+                  {{ item.content }}
+                </router-link>
+              </div>
+
+              <!-- 右侧详情箭头 -->
+              <router-link
+                :to="'/docs/' + item.id"
+                class="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-muted-foreground group-hover:text-foreground shrink-0 font-mono flex items-center space-x-0.5"
+                title="查看详情"
+              >
+                <span>详情</span>
+                <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </router-link>
+            </div>
+          </div>
+        </transition>
+
+        <!-- 底部微型分页控制器 (当页数 > 1 时呈现，纯净右对齐) -->
+        <div v-if="totalAnnouncePages > 1" class="flex items-center justify-end pt-1 space-x-2 text-xs text-muted-foreground">
+          <!-- 页码圆点/指示条 -->
+          <div class="flex items-center space-x-1">
+            <button
+              v-for="(_, pIdx) in announcementPages"
+              :key="pIdx"
+              @click="currentAnnouncePage = pIdx"
+              class="h-1.5 rounded-full transition-all duration-200 cursor-pointer"
+              :class="currentAnnouncePage === pIdx ? 'w-4 bg-foreground' : 'w-1.5 bg-border hover:bg-muted-foreground/60'"
+              :title="`跳转到第 ${pIdx + 1} 页`"
+            ></button>
+          </div>
+
+          <!-- 上一页 / 下一页微控件 -->
+          <div class="flex items-center space-x-1 font-mono">
             <button 
-              @click="prevBroadcast" 
-              class="w-5 h-5 rounded flex items-center justify-center hover:bg-accent text-foreground/80 hover:text-foreground cursor-pointer text-xs"
-              title="上一条公告"
+              @click="prevAnnouncePage" 
+              class="w-5 h-5 rounded flex items-center justify-center hover:bg-accent text-foreground/80 hover:text-foreground cursor-pointer text-xs transition-colors"
+              title="上一页"
             >
               ‹
             </button>
-            <span class="text-[11px] text-muted-foreground/80 select-none">{{ broadcastIndex + 1 }}/{{ announcements.length }}</span>
+            <span class="text-[11px] text-muted-foreground/80 select-none">{{ currentAnnouncePage + 1 }}/{{ totalAnnouncePages }}</span>
             <button 
-              @click="nextBroadcast" 
-              class="w-5 h-5 rounded flex items-center justify-center hover:bg-accent text-foreground/80 hover:text-foreground cursor-pointer text-xs"
-              title="下一条公告"
+              @click="nextAnnouncePage" 
+              class="w-5 h-5 rounded flex items-center justify-center hover:bg-accent text-foreground/80 hover:text-foreground cursor-pointer text-xs transition-colors"
+              title="下一页"
             >
               ›
             </button>
           </div>
-
-          <router-link
-            v-if="announcements[broadcastIndex]"
-            :to="'/docs/' + announcements[broadcastIndex].id"
-            class="text-[11px] text-muted-foreground hover:text-foreground transition-colors font-sans flex items-center space-x-0.5 ml-0.5"
-          >
-            <span>详情</span>
-            <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-            </svg>
-          </router-link>
         </div>
       </div>
     </section>
@@ -371,7 +399,7 @@ onUnmounted(() => {
               : 'border-border/60 text-muted-foreground hover:text-foreground hover:bg-secondary/80'
           ]"
         >
-          全部应用 ({{ links.length }})
+          全部应用 ({{ links ? links.length : 0 }})
         </button>
         <button
           v-for="cat in categories"
@@ -449,7 +477,7 @@ onUnmounted(() => {
             <img 
               v-if="link.icon" 
               :src="link.icon" 
-              :alt="link.title"
+              :alt="link.title" 
               class="w-full h-full object-contain"
               @error="handleIconError"
             />
@@ -477,7 +505,7 @@ onUnmounted(() => {
               </h3>
             </div>
             
-            <p class="text-xs text-muted-foreground mt-1 font-mono truncate">
+            <p class="text-xs text-muted-foreground/80 truncate mt-1 font-mono">
               {{ extractHostname(link.url) }}
             </p>
 
