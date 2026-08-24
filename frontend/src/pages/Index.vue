@@ -165,29 +165,29 @@ onUnmounted(() => {
     </section>
 
     <!-- 顶部公告区 (Announcements) -->
-    <section v-if="announcements.length > 0" class="border-y border-border/50 py-4">
-      <div class="space-y-2.5">
+    <section v-if="announcements.length > 0" class="border-y border-border/50 py-3.5">
+      <div class="space-y-2">
         <div 
           v-for="item in announcements" 
           :key="item.id" 
-          class="text-xs sm:text-sm text-muted-foreground leading-relaxed flex items-center justify-between gap-3 group p-1 -mx-1 rounded-md hover:bg-muted/30 transition-colors"
+          class="text-xs sm:text-sm text-muted-foreground leading-relaxed flex items-center space-x-3"
         >
-          <div class="flex items-start sm:items-center space-x-3 min-w-0">
-            <span class="px-2 py-0.5 text-[11px] font-semibold rounded bg-secondary text-foreground shrink-0">
-              公告
-            </span>
-            <span class="tracking-tight text-foreground/90 truncate">{{ item.content }}</span>
-          </div>
-
-          <!-- 若包含 AI 指南相关，或通用详情链接 -->
-          <router-link 
+          <span class="px-2 py-0.5 text-[11px] font-semibold rounded bg-secondary text-foreground shrink-0">
+            公告
+          </span>
+          
+          <!-- 直接点击公告标题跳转至对应指南或页面 -->
+          <router-link
             v-if="item.content.includes('AI') || item.content.includes('指南') || item.content.includes('Claude') || item.content.includes('Codex')"
             to="/docs/ai"
-            class="text-xs text-primary hover:underline font-medium shrink-0 flex items-center space-x-1"
+            class="tracking-tight text-foreground/90 hover:text-primary hover:underline transition-colors truncate cursor-pointer"
+            title="点击查看 AI 编程助手接入指南"
           >
-            <span>查看指南</span>
-            <span>&rarr;</span>
+            {{ item.content }}
           </router-link>
+          <span v-else class="tracking-tight text-foreground/90 truncate">
+            {{ item.content }}
+          </span>
         </div>
       </div>
     </section>
