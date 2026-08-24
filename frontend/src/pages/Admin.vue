@@ -12,6 +12,7 @@ interface LinkItem {
 interface AnnouncementItem {
   id: number
   content: string
+  detail_md?: string
   is_active: boolean
   created_at: string
 }
@@ -23,7 +24,7 @@ const links = ref<LinkItem[]>([])
 const announcements = ref<AnnouncementItem[]>([])
 
 const newLink = ref({ title: '', url: '', category: '开发协作', icon: '' })
-const newAnnouncement = ref({ content: '', is_active: true })
+const newAnnouncement = ref({ content: '', detail_md: '', is_active: true })
 const activeTab = ref<'links' | 'announcements' | 'backup'>('links')
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 const faviconLoading = ref(false)
@@ -42,14 +43,45 @@ const editingLink = ref<{ id: number; title: string; url: string; category: stri
 const editFaviconLoading = ref(false)
 
 const isEditAnnModalOpen = ref(false)
-const editingAnnouncement = ref<{ id: number; content: string; is_active: boolean }>({
+const editingAnnouncement = ref<{ id: number; content: string; detail_md: string; is_active: boolean }>({
   id: 0,
   content: '',
+  detail_md: '',
   is_active: true
 })
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const jsonInputRef = ref<HTMLInputElement | null>(null)
+const mdFileInputRef = ref<HTMLInputElement | null>(null)
+const editMdFileInputRef = ref<HTMLInputElement | null>(null)
+
+// 导入 .md 文件
+const handleImportMd = (event: Event, isEdit = false) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const text = (e.target?.result as string) || ''
+    if (isEdit) {
+      editingAnnouncement.value.detail_md = text
+      if (!editingAnnouncement.value.content) {
+        const firstLine = text.split('\n')[0].replace(/^#+\s*/, '').trim()
+        editingAnnouncement.value.content = firstLine || file.name.replace(/\.md$/i, '')
+      }
+    } else {
+      newAnnouncement.value.detail_md = text
+      if (!newAnnouncement.value.content) {
+        const firstLine = text.split('\n')[0].replace(/^#+\s*/, '').trim()
+        newAnnouncement.value.content = firstLine || file.name.replace(/\.md$/i, '')
+      }
+    }
+    showMessage(`已成功导入 ${file.name}`)
+    target.value = ''
+  }
+  reader.readAsText(file, 'UTF-8')
+}
 
 const showMessage = (text: string, type: 'success' | 'error' = 'success') => {
   message.value = { type, text }
@@ -279,7 +311,7 @@ const handleAddAnnouncement = async () => {
     const data = await res.json()
     if (data.code === 0) {
       showMessage('公告发布成功')
-      newAnnouncement.value = { content: '', is_active: true }
+      newAnnouncement.value = { content: '', detail_md: '', is_active: true }
       loadData()
     } else {
       showMessage(data.msg || '发布失败', 'error')
@@ -294,6 +326,7 @@ const openEditAnnModal = (item: AnnouncementItem) => {
   editingAnnouncement.value = {
     id: item.id,
     content: item.content,
+    detail_md: item.detail_md || '',
     is_active: item.is_active
   }
   isEditAnnModalOpen.value = true
@@ -735,17 +768,52 @@ onMounted(() => {
       <div v-if="activeTab === 'announcements'" class="space-y-6">
         <!-- 发布公告表单 -->
         <div class="rounded-lg border border-border bg-card p-5 space-y-4">
-          <h3 class="text-sm font-semibold text-foreground">发布系统公告</h3>
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-foreground">发布系统公告</h3>
+            <span class="text-xs text-muted-foreground">支持纯文本公告或导入长篇 Markdown 文档</span>
+          </div>
 
-          <form @submit.prevent="handleAddAnnouncement" class="space-y-3">
+          <form @submit.prevent="handleAddAnnouncement" class="space-y-4">
             <div class="space-y-1">
-              <label class="text-xs font-medium text-muted-foreground">公告文本内容</label>
+              <label class="text-xs font-medium text-muted-foreground">公告标题 / 摘要</label>
               <input 
                 v-model="newAnnouncement.content" 
-                placeholder="例如: 全新内部知识库已上线，欢迎团队成员使用与录入文档。" 
+                placeholder="例如: 🔥 AI 编程助手接入指南已上线（支持 Claude Code / Codex / WorkBuddy）" 
                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 required
               />
+            </div>
+
+            <!-- Markdown 详情与导入 -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-medium text-muted-foreground">详细内容 (Markdown / 可选)</label>
+                <div class="flex items-center space-x-2">
+                  <input 
+                    ref="mdFileInputRef"
+                    type="file" 
+                    accept=".md,.markdown,.txt" 
+                    class="hidden" 
+                    @change="(e) => handleImportMd(e, false)"
+                  />
+                  <button
+                    type="button"
+                    @click="mdFileInputRef?.click()"
+                    class="text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer flex items-center space-x-1 border border-input bg-background hover:bg-accent px-2 py-0.5 rounded shadow-xs"
+                  >
+                    <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    <span>导入 .md 文档</span>
+                  </button>
+                </div>
+              </div>
+              <textarea 
+                v-model="newAnnouncement.detail_md" 
+                placeholder="在此粘贴 Markdown 内容，或点击右上角导入本地 .md 文件。内容将动态展示在前台内容页中..."
+                rows="6"
+                class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs font-mono shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y leading-relaxed"
+              ></textarea>
             </div>
 
             <div class="flex items-center justify-between pt-1">
@@ -998,12 +1066,41 @@ onMounted(() => {
 
             <form @submit.prevent="handleSaveEditAnnouncement" class="space-y-4">
               <div class="space-y-1">
-                <label class="text-xs font-medium text-muted-foreground">公告内容</label>
+                <label class="text-xs font-medium text-muted-foreground">公告标题 / 摘要</label>
                 <input 
                   v-model="editingAnnouncement.content" 
                   class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   required
                 />
+              </div>
+
+              <!-- 编辑 Markdown 详情 -->
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label class="text-xs font-medium text-muted-foreground">详细内容 (Markdown / 支持文档渲染)</label>
+                  <div class="flex items-center space-x-2">
+                    <input 
+                      ref="editMdFileInputRef"
+                      type="file" 
+                      accept=".md,.markdown,.txt" 
+                      class="hidden" 
+                      @change="(e) => handleImportMd(e, true)"
+                    />
+                    <button
+                      type="button"
+                      @click="editMdFileInputRef?.click()"
+                      class="text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer flex items-center space-x-1 border border-input bg-background hover:bg-accent px-2 py-0.5 rounded shadow-xs"
+                    >
+                      <span>替换导入 .md</span>
+                    </button>
+                  </div>
+                </div>
+                <textarea 
+                  v-model="editingAnnouncement.detail_md" 
+                  placeholder="在此编辑长篇 Markdown 详情、接入步骤或代码示例..."
+                  rows="7"
+                  class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs font-mono shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y leading-relaxed"
+                ></textarea>
               </div>
 
               <div class="flex items-center space-x-2 pt-1">

@@ -31,7 +31,25 @@ func GetActiveAnnouncements(c *gin.Context) {
 	Success(c, list)
 }
 
-// CreateAnnouncement 发布一条新公告
+// GetAnnouncementDetail 获取单条公告详情 (含完整 Markdown)
+func GetAnnouncementDetail(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		Error(c, 400, "无效的 ID 参数")
+		return
+	}
+
+	var item models.Announcement
+	if err := db.DB.First(&item, id).Error; err != nil {
+		Error(c, 404, "未找到该公告详情")
+		return
+	}
+
+	Success(c, item)
+}
+
+// CreateAnnouncement 发布一条新公告 (支持保存 Markdown 详情)
 func CreateAnnouncement(c *gin.Context) {
 	var input models.Announcement
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -48,7 +66,7 @@ func CreateAnnouncement(c *gin.Context) {
 	Success(c, input)
 }
 
-// UpdateAnnouncement 修改公告内容与状态
+// UpdateAnnouncement 修改公告内容与状态 (支持更新 Markdown 详情)
 func UpdateAnnouncement(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -70,6 +88,7 @@ func UpdateAnnouncement(c *gin.Context) {
 	}
 
 	existing.Content = input.Content
+	existing.DetailMD = input.DetailMD
 	existing.IsActive = input.IsActive
 
 	if err := db.DB.Save(&existing).Error; err != nil {

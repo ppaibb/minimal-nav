@@ -53,6 +53,7 @@ func registerRoutes(r *gin.RouterGroup) {
 	// 3. 公告管理 (读公开，写保护)
 	r.GET("/announcements", handlers.GetAnnouncements)
 	r.GET("/announcements/active", handlers.GetActiveAnnouncements)
+	r.GET("/announcements/:id", handlers.GetAnnouncementDetail)
 	r.POST("/announcements", handlers.AuthMiddleware(), handlers.CreateAnnouncement)
 	r.PUT("/announcements/:id", handlers.AuthMiddleware(), handlers.UpdateAnnouncement)
 	r.PUT("/announcements/:id/toggle", handlers.AuthMiddleware(), handlers.ToggleAnnouncement)

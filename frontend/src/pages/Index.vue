@@ -176,18 +176,14 @@ onUnmounted(() => {
             公告
           </span>
           
-          <!-- 直接点击公告标题跳转至对应指南或页面 -->
+          <!-- 直接点击公告标题跳转至对应的 Markdown 详情页 -->
           <router-link
-            v-if="item.content.includes('AI') || item.content.includes('指南') || item.content.includes('Claude') || item.content.includes('Codex')"
-            to="/docs/ai"
+            :to="'/docs/' + item.id"
             class="tracking-tight text-foreground/90 hover:text-primary hover:underline transition-colors truncate cursor-pointer"
-            title="点击查看 AI 编程助手接入指南"
+            :title="'查看详情: ' + item.content"
           >
             {{ item.content }}
           </router-link>
-          <span v-else class="tracking-tight text-foreground/90 truncate">
-            {{ item.content }}
-          </span>
         </div>
       </div>
     </section>
