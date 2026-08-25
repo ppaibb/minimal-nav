@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useSiteConfig } from '../utils/useSiteConfig'
 
 interface LinkItem {
@@ -28,7 +28,18 @@ const authError = ref('')
 const links = ref<LinkItem[]>([])
 const announcements = ref<AnnouncementItem[]>([])
 
-const newLink = ref({ title: '', url: '', category: '开发协作', icon: '' })
+// 提取当前所有已存在的去重分类列表
+const existingCategories = computed(() => {
+  const set = new Set<string>()
+  links.value.forEach(l => {
+    if (l.category && l.category.trim()) {
+      set.add(l.category.trim())
+    }
+  })
+  return Array.from(set)
+})
+
+const newLink = ref({ title: '', url: '', category: '', icon: '' })
 const newAnnouncement = ref({ content: '', detail_md: '', is_active: true })
 const activeTab = ref<'links' | 'announcements' | 'backup' | 'settings'>('links')
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -657,9 +668,12 @@ onMounted(() => {
           </div>
 
           <form @submit.prevent="handleAddLink" class="space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div class="space-y-1">
-                <label class="text-xs font-medium text-muted-foreground">链接标题</label>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
+              <!-- 列 1: 标题 -->
+              <div class="space-y-1.5">
+                <div class="h-5 flex items-center justify-between">
+                  <label class="text-xs font-medium text-muted-foreground">链接标题</label>
+                </div>
                 <input 
                   v-model="newLink.title" 
                   placeholder="例如: GitHub, Figma" 
@@ -668,18 +682,20 @@ onMounted(() => {
                 />
               </div>
 
-              <div class="space-y-1">
-                <div class="flex items-center justify-between">
+              <!-- 列 2: 网址与自动提取 Favicon -->
+              <div class="space-y-1.5">
+                <div class="h-5 flex items-center justify-between">
                   <label class="text-xs font-medium text-muted-foreground">目标网址</label>
                   <button
                     type="button"
                     @click="handleAutoFavicon(false)"
-                    class="text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer flex items-center space-x-1"
+                    class="text-[11px] text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer flex items-center space-x-1 leading-none"
+                    title="根据网址自动提取高清 Favicon"
                   >
                     <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                     </svg>
-                    <span>{{ faviconLoading ? '获取中...' : '自动获取图标' }}</span>
+                    <span>{{ faviconLoading ? '获取中...' : '自动提取图标' }}</span>
                   </button>
                 </div>
                 <input 
@@ -691,13 +707,28 @@ onMounted(() => {
                 />
               </div>
 
-              <div class="space-y-1">
-                <label class="text-xs font-medium text-muted-foreground">所属分类</label>
-                <input 
-                  v-model="newLink.category" 
-                  placeholder="例如: 开发协作, 运维部署" 
-                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
+              <!-- 列 3: 所属分类 (可直接从已有分类中选取，亦可输入新分类) -->
+              <div class="space-y-1.5">
+                <div class="h-5 flex items-center justify-between">
+                  <label class="text-xs font-medium text-muted-foreground">所属分类</label>
+                  <span v-if="existingCategories.length" class="text-[11px] text-muted-foreground font-normal">
+                    双击或输入以选择
+                  </span>
+                </div>
+                <div class="relative">
+                  <input 
+                    v-model="newLink.category" 
+                    list="category-options"
+                    placeholder="选择已有分类或输入新分类" 
+                    class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pr-8"
+                    required
+                  />
+                  <div class="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground/60">
+                    <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1093,11 +1124,26 @@ onMounted(() => {
               </div>
 
               <div class="space-y-1">
-                <label class="text-xs font-medium text-muted-foreground">所属分类</label>
-                <input 
-                  v-model="editingLink.category" 
-                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
+                <div class="flex items-center justify-between">
+                  <label class="text-xs font-medium text-muted-foreground">所属分类</label>
+                  <span v-if="existingCategories.length" class="text-[11px] text-muted-foreground font-normal">
+                    双击或输入以选择
+                  </span>
+                </div>
+                <div class="relative">
+                  <input 
+                    v-model="editingLink.category" 
+                    list="category-options"
+                    placeholder="选择已有分类或输入新分类"
+                    class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pr-8"
+                    required
+                  />
+                  <div class="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground/60">
+                    <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </div>
+                </div>
               </div>
 
               <div class="space-y-1">
@@ -1228,5 +1274,10 @@ onMounted(() => {
         </div>
       </transition>
     </teleport>
+
+    <!-- 🌟 全局分类数据源 (支持 input list 快捷选取与模糊补全) -->
+    <datalist id="category-options">
+      <option v-for="cat in existingCategories" :key="cat" :value="cat">{{ cat }}</option>
+    </datalist>
   </div>
 </template>
