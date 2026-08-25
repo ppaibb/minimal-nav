@@ -75,9 +75,92 @@ INSERT OR REPLACE INTO links (id, title, url, category, icon, sort_order) VALUES
 -- 6. Docker 镜像加速
 (29, '自建镜像加速节点', 'https://cr.gua.cx/', 'Docker 镜像加速', 'https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https%3A%2F%2Fcr.gua.cx&size=64', 29);
 
-INSERT OR IGNORE INTO announcements (id, content, is_active) VALUES 
-(1, '团队常用开发、协作、数据库、IDE 与 AI 助手导航已整理上线。', 1),
-(2, '支持搜索、分类过滤与一键直达，点击右上角后台可自定义拓展。', 1);
+INSERT OR REPLACE INTO announcements (id, content, detail_md, is_active, sort_order) VALUES 
+(1, 
+'🔥 AI 编程助手接入指南（Claude Code / Codex / WorkBuddy）',
+'# AI 编程助手接入指南
+
+团队统一接入 724AI 镜像中转网络，为 Claude Code、Codex 及 WorkBuddy 客户端提供稳定免翻墙的极速编码服务。
+
+---
+
+## 准备工作与注意事项
+
+1. **专属 Key**：每个人使用独立的专属 API Key，请勿混用或共享。开通权限或获取 Key 请在飞书联系管理员。
+2. **分组说明**：当前 Key 区分 Claude 与 Codex 独立路由分组，如需跨组使用请联系管理员调整。
+
+---
+
+## 一、Claude Code 接入
+
+将 Claude Code 的默认请求地址替换为 724AI 中转站（`api.724ai.org`），直连稳定无需代理。
+
+### 1. 安装 Claude Code
+确保已安装 Node.js 18+ 环境：
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+### 2. 配置 724AI 接入
+编辑配置文件 `~/.claude/settings.json`（Windows 对应 `C:\Users\用户名\.claude\settings.json`）：
+```json
+{
+  "env": {
+    "ANTHROPIC_API_KEY": "sk-xxxxxxxxxxxxxxxx",
+    "ANTHROPIC_BASE_URL": "https://api.724ai.org",
+    "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1"
+  }
+}
+```
+> **注意**：`ANTHROPIC_BASE_URL` 必须填写 `https://api.724ai.org`，末尾严禁加斜杠 `/`。
+
+### 3. 跳过官方网页鉴权
+在 `~/.claude.json` 中添加跳过标识：
+```json
+{
+  "hasCompletedOnboarding": true
+}
+```
+
+---
+
+## 二、Codex CLI & App 接入
+
+### 1. 安装 Codex
+- **桌面客户端**：前往官方页面下载对应平台版本。
+- **CLI 命令行**：
+```bash
+npm install -g @openai/codex
+```
+
+---
+
+## 三、WorkBuddy 接入
+
+WorkBuddy 支持兼容 OpenAI 协议的自定义模型，直接使用 724AI 通用接口地址：
+- **接口地址**：`https://api.724ai.org/v1`
+- **推荐模型**：`gpt-5.6-sol` / `gpt-5.6-luna`
+',
+1, 
+1),
+
+(2, 
+'欢迎使用团队极简导航系统！支持云原生部署与自定义配置',
+'# 欢迎使用团队极简导航系统
+
+本项目是专为极客与团队打造的极简冷峻风格（Swiss Layout）导航与工具集成平台。
+
+---
+
+## 核心功能介绍
+
+1. **多分类导航**：集中整理了开发工具、AI 助手、数据库、网络运维与常用文档。
+2. **实时测速与 Favicon 探测**：内置边缘网络探测引擎，实时测试目标网址连通性并自动提取高清图标。
+3. **数据导入与备份**：支持全量 JSON 数据导出，以及 Chrome / Edge 浏览器书签 HTML 一键批量解析导入。
+4. **后台管理**：点击右上角后台管理即可进入自定义配置，所有数据实时保存到云端 D1 数据库。
+',
+1, 
+2);
 
 INSERT OR IGNORE INTO settings (key, value) VALUES 
 ('site_name', '团队常用工具推荐'),
