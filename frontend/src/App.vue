@@ -158,7 +158,20 @@ onUnmounted(() => {
 
         <!-- 右上角：Vercel 风格精致操作按钮组 -->
         <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <!-- 皮肤切换下拉菜单 -->
+          <!-- 🐙 GitHub 仓库直达 (最左侧) -->
+          <a
+            href="https://github.com/ppaibb/minimal-nav"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="h-8 w-8 sm:h-8.5 sm:w-8.5 rounded-md border border-border/80 bg-background text-foreground/80 hover:text-foreground hover:bg-accent/80 hover:border-border shadow-xs flex items-center justify-center transition-all duration-150 cursor-pointer focus:outline-none"
+            title="查看 GitHub 仓库源码"
+          >
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+            </svg>
+          </a>
+
+          <!-- 皮肤切换下拉菜单 (中间) -->
           <div ref="dropdownRef" class="relative">
             <button
               @click.stop="isDropdownOpen = !isDropdownOpen"
@@ -247,7 +260,7 @@ onUnmounted(() => {
             </transition>
           </div>
 
-          <!-- ⚙️ 管理后台 (齿轮设置按钮) -->
+          <!-- ⚙️ 管理后台 (齿轮设置按钮 - 最右侧) -->
           <router-link 
             to="/admin" 
             class="h-8 w-8 sm:h-8.5 sm:w-8.5 rounded-md border border-border/80 bg-background text-foreground/80 hover:text-foreground hover:bg-accent/80 hover:border-border shadow-xs flex items-center justify-center transition-all duration-150"
@@ -270,8 +283,19 @@ onUnmounted(() => {
     <!-- 底部 (纯净无分割线) -->
     <footer class="py-8 text-xs text-muted-foreground">
       <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 flex flex-col sm:flex-row justify-between items-center gap-3">
-        <p>© Minimal Nav. Designed for high efficiency & restrained elegance.</p>
-        <p class="font-mono text-xs text-muted-foreground/70">Go 1.21 + Vue 3 + Tailwind CSS</p>
+        <div class="flex items-center gap-3 flex-wrap">
+          <p>© {{ siteConfig.site_name || 'Minimal Nav' }}. Designed for high efficiency & restrained elegance.</p>
+          <a
+            v-if="siteConfig.icp_beian"
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="hover:underline hover:text-foreground transition-colors font-mono"
+          >
+            {{ siteConfig.icp_beian }}
+          </a>
+        </div>
+        <p class="font-mono text-xs text-muted-foreground/70">Vue 3 + Serverless + Tailwind CSS</p>
       </div>
     </footer>
 

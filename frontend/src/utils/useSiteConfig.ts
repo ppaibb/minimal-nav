@@ -3,11 +3,13 @@ import { ref } from 'vue'
 export interface SiteConfig {
   site_name: string
   site_desc: string
+  icp_beian?: string
 }
 
 const siteConfig = ref<SiteConfig>({
-  site_name: '极简研发工作台',
-  site_desc: ''
+  site_name: '团队常用工具推荐',
+  site_desc: '',
+  icp_beian: ''
 })
 
 const isLoaded = ref(false)
@@ -20,8 +22,9 @@ export const useSiteConfig = () => {
         const data = await res.json()
         if (data.code === 0 && data.data) {
           siteConfig.value = {
-            site_name: data.data.site_name || '极简研发工作台',
-            site_desc: data.data.site_desc || ''
+            site_name: data.data.site_name || '团队常用工具推荐',
+            site_desc: data.data.site_desc || '',
+            icp_beian: data.data.icp_beian || ''
           }
           document.title = siteConfig.value.site_name
           isLoaded.value = true
@@ -45,7 +48,8 @@ export const useSiteConfig = () => {
     if (data.code === 0 && data.data) {
       siteConfig.value = {
         site_name: data.data.site_name || siteConfig.value.site_name,
-        site_desc: data.data.site_desc !== undefined ? data.data.site_desc : ''
+        site_desc: data.data.site_desc !== undefined ? data.data.site_desc : '',
+        icp_beian: data.data.icp_beian !== undefined ? data.data.icp_beian : ''
       }
       document.title = siteConfig.value.site_name
       return { success: true }

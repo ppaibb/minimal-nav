@@ -19,7 +19,7 @@ interface AnnouncementItem {
 }
 
 const { siteConfig, loadSiteConfig, updateSiteConfig } = useSiteConfig()
-const editSettingsForm = ref({ site_name: '', site_desc: '' })
+const editSettingsForm = ref({ site_name: '', site_desc: '', icp_beian: '' })
 const saveSettingsLoading = ref(false)
 
 const isAuthenticated = ref(false)
@@ -185,7 +185,8 @@ const loadData = async () => {
     ])
     editSettingsForm.value = {
       site_name: siteConfig.value.site_name,
-      site_desc: siteConfig.value.site_desc
+      site_desc: siteConfig.value.site_desc,
+      icp_beian: siteConfig.value.icp_beian || ''
     }
     if (linksRes.ok) {
       const data = await linksRes.json()
@@ -1013,6 +1014,16 @@ onMounted(() => {
                 class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y leading-relaxed"
               ></textarea>
               <p class="text-[11px] text-muted-foreground">展示在首页大标题下方，留空则不显示。</p>
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-foreground">ICP 备案号 (可选)</label>
+              <input 
+                v-model="editSettingsForm.icp_beian" 
+                placeholder="例如: 京ICP备XXXXXXXX号-1" 
+                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <p class="text-[11px] text-muted-foreground">展示在全站底部页脚居中/左侧，点击可直达工信部备案查询系统。留空则不展示。</p>
             </div>
 
             <div class="pt-2 border-t border-border flex justify-end">

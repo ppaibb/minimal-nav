@@ -224,7 +224,7 @@ const handleIconError = (e: Event) => {
   }
 }
 
-const { siteConfig, loadSiteConfig } = useSiteConfig()
+const { loadSiteConfig } = useSiteConfig()
 
 // 🌟 公告 3 行多页滑动与自动轮播系统
 const ANNOUNCE_PAGE_SIZE = 3
