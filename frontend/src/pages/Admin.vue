@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useSiteConfig } from '../utils/useSiteConfig'
 
 interface LinkItem {
@@ -28,7 +28,43 @@ const authError = ref('')
 const links = ref<LinkItem[]>([])
 const announcements = ref<AnnouncementItem[]>([])
 
-const newLink = ref({ title: '', url: '', category: '开发协作', icon: '' })
+// 提取当前所有已存在的去重分类列表
+const existingCategories = computed(() => {
+  const set = new Set<string>()
+  links.value.forEach(l => {
+    if (l.category && l.category.trim()) {
+      set.add(l.category.trim())
+    }
+  })
+  return Array.from(set)
+})
+
+// 分类下拉菜单状态 (正统 shadcn Combobox)
+const isNewCategoryDropdownOpen = ref(false)
+const isEditCategoryDropdownOpen = ref(false)
+const newCategoryDropdownRef = ref<HTMLDivElement | null>(null)
+const editCategoryDropdownRef = ref<HTMLDivElement | null>(null)
+
+const selectNewCategory = (cat: string) => {
+  newLink.value.category = cat
+  isNewCategoryDropdownOpen.value = false
+}
+
+const selectEditCategory = (cat: string) => {
+  editingLink.value.category = cat
+  isEditCategoryDropdownOpen.value = false
+}
+
+const handleGlobalClick = (e: MouseEvent) => {
+  if (newCategoryDropdownRef.value && !newCategoryDropdownRef.value.contains(e.target as Node)) {
+    isNewCategoryDropdownOpen.value = false
+  }
+  if (editCategoryDropdownRef.value && !editCategoryDropdownRef.value.contains(e.target as Node)) {
+    isEditCategoryDropdownOpen.value = false
+  }
+}
+
+const newLink = ref({ title: '', url: '', category: '', icon: '' })
 const newAnnouncement = ref({ content: '', detail_md: '', is_active: true })
 const activeTab = ref<'links' | 'announcements' | 'backup' | 'settings'>('links')
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -524,6 +560,11 @@ const handleJsonBackupChange = async (e: Event) => {
 
 onMounted(() => {
   checkAuth()
+  document.addEventListener('click', handleGlobalClick)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleGlobalClick)
 })
 </script>
 
@@ -657,9 +698,12 @@ onMounted(() => {
           </div>
 
           <form @submit.prevent="handleAddLink" class="space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div class="space-y-1">
-                <label class="text-xs font-medium text-muted-foreground">链接标题</label>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
+              <!-- 列 1: 标题 -->
+              <div class="space-y-1.5">
+                <div class="h-5 flex items-center justify-between">
+                  <label class="text-xs font-medium text-muted-foreground">链接标题</label>
+                </div>
                 <input 
                   v-model="newLink.title" 
                   placeholder="例如: GitHub, Figma" 
@@ -668,18 +712,20 @@ onMounted(() => {
                 />
               </div>
 
-              <div class="space-y-1">
-                <div class="flex items-center justify-between">
+              <!-- 列 2: 网址与自动提取 Favicon -->
+              <div class="space-y-1.5">
+                <div class="h-5 flex items-center justify-between">
                   <label class="text-xs font-medium text-muted-foreground">目标网址</label>
                   <button
                     type="button"
                     @click="handleAutoFavicon(false)"
-                    class="text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer flex items-center space-x-1"
+                    class="text-[11px] text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer flex items-center space-x-1 leading-none"
+                    title="根据网址自动提取高清 Favicon"
                   >
                     <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                     </svg>
-                    <span>{{ faviconLoading ? '获取中...' : '自动获取图标' }}</span>
+                    <span>{{ faviconLoading ? '获取中...' : '自动提取图标' }}</span>
                   </button>
                 </div>
                 <input 
@@ -691,13 +737,67 @@ onMounted(() => {
                 />
               </div>
 
-              <div class="space-y-1">
-                <label class="text-xs font-medium text-muted-foreground">所属分类</label>
-                <input 
-                  v-model="newLink.category" 
-                  placeholder="例如: 开发协作, 运维部署" 
-                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
+              <!-- 列 3: 所属分类 (精致 shadcn Combobox: 可直接选取亦可自由输入) -->
+              <div class="space-y-1.5" ref="newCategoryDropdownRef">
+                <div class="h-5 flex items-center justify-between">
+                  <label class="text-xs font-medium text-muted-foreground">所属分类</label>
+                  <span v-if="existingCategories.length" class="text-[11px] text-muted-foreground font-normal">
+                    支持选取或新建
+                  </span>
+                </div>
+                <div class="relative">
+                  <input 
+                    v-model="newLink.category" 
+                    placeholder="选择已有分类或输入新分类" 
+                    @focus="isNewCategoryDropdownOpen = true"
+                    class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pr-8"
+                    required
+                  />
+                  <button 
+                    type="button"
+                    @click.stop="isNewCategoryDropdownOpen = !isNewCategoryDropdownOpen"
+                    class="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
+                    title="展开/收起已有分类"
+                  >
+                    <svg class="w-3.5 h-3.5 opacity-60 transition-transform duration-200" :class="{ 'rotate-180': isNewCategoryDropdownOpen }" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+
+                  <!-- 极简高质感分类下拉菜单 -->
+                  <transition
+                    enter-active-class="transition duration-100 ease-out"
+                    enter-from-class="transform scale-95 opacity-0 -translate-y-1"
+                    enter-to-class="transform scale-100 opacity-100 translate-y-0"
+                    leave-active-class="transition duration-75 ease-in"
+                    leave-from-class="transform scale-100 opacity-100 translate-y-0"
+                    leave-to-class="transform scale-95 opacity-0 -translate-y-1"
+                  >
+                    <div 
+                      v-if="isNewCategoryDropdownOpen && existingCategories.length > 0"
+                      class="absolute left-0 right-0 top-full mt-1.5 max-h-56 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-lg z-50 p-1 divide-y divide-border/30 backdrop-blur-md focus:outline-none"
+                    >
+                      <div class="px-2 py-1 text-[10px] font-medium text-muted-foreground tracking-wider uppercase">
+                        已存在分类
+                      </div>
+                      <div class="pt-0.5 space-y-0.5">
+                        <button
+                          v-for="cat in existingCategories"
+                          :key="cat"
+                          type="button"
+                          @click="selectNewCategory(cat)"
+                          class="w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer text-left"
+                          :class="{ 'bg-accent/60 font-medium text-foreground': newLink.category === cat }"
+                        >
+                          <span class="truncate">{{ cat }}</span>
+                          <svg v-if="newLink.category === cat" class="w-3.5 h-3.5 text-foreground shrink-0 ml-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </transition>
+                </div>
               </div>
             </div>
 
@@ -1092,12 +1192,67 @@ onMounted(() => {
                 />
               </div>
 
-              <div class="space-y-1">
-                <label class="text-xs font-medium text-muted-foreground">所属分类</label>
-                <input 
-                  v-model="editingLink.category" 
-                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
+              <!-- 所属分类 -->
+              <div class="space-y-1.5" ref="editCategoryDropdownRef">
+                <div class="h-5 flex items-center justify-between">
+                  <label class="text-xs font-medium text-muted-foreground">所属分类</label>
+                  <span v-if="existingCategories.length" class="text-[11px] text-muted-foreground font-normal">
+                    支持选取或新建
+                  </span>
+                </div>
+                <div class="relative">
+                  <input 
+                    v-model="editingLink.category" 
+                    placeholder="选择已有分类或输入新分类"
+                    @focus="isEditCategoryDropdownOpen = true"
+                    class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pr-8"
+                    required
+                  />
+                  <button 
+                    type="button"
+                    @click.stop="isEditCategoryDropdownOpen = !isEditCategoryDropdownOpen"
+                    class="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
+                    title="展开/收起已有分类"
+                  >
+                    <svg class="w-3.5 h-3.5 opacity-60 transition-transform duration-200" :class="{ 'rotate-180': isEditCategoryDropdownOpen }" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+
+                  <!-- 极简高质感分类下拉菜单 -->
+                  <transition
+                    enter-active-class="transition duration-100 ease-out"
+                    enter-from-class="transform scale-95 opacity-0 -translate-y-1"
+                    enter-to-class="transform scale-100 opacity-100 translate-y-0"
+                    leave-active-class="transition duration-75 ease-in"
+                    leave-from-class="transform scale-100 opacity-100 translate-y-0"
+                    leave-to-class="transform scale-95 opacity-0 -translate-y-1"
+                  >
+                    <div 
+                      v-if="isEditCategoryDropdownOpen && existingCategories.length > 0"
+                      class="absolute left-0 right-0 top-full mt-1.5 max-h-56 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-lg z-50 p-1 divide-y divide-border/30 backdrop-blur-md focus:outline-none"
+                    >
+                      <div class="px-2 py-1 text-[10px] font-medium text-muted-foreground tracking-wider uppercase">
+                        已存在分类
+                      </div>
+                      <div class="pt-0.5 space-y-0.5">
+                        <button
+                          v-for="cat in existingCategories"
+                          :key="cat"
+                          type="button"
+                          @click="selectEditCategory(cat)"
+                          class="w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer text-left"
+                          :class="{ 'bg-accent/60 font-medium text-foreground': editingLink.category === cat }"
+                        >
+                          <span class="truncate">{{ cat }}</span>
+                          <svg v-if="editingLink.category === cat" class="w-3.5 h-3.5 text-foreground shrink-0 ml-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </transition>
+                </div>
               </div>
 
               <div class="space-y-1">
