@@ -283,8 +283,19 @@ onUnmounted(() => {
     <!-- 底部 (纯净无分割线) -->
     <footer class="py-8 text-xs text-muted-foreground">
       <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 flex flex-col sm:flex-row justify-between items-center gap-3">
-        <p>© Minimal Nav. Designed for high efficiency & restrained elegance.</p>
-        <p class="font-mono text-xs text-muted-foreground/70">Go 1.21 + Vue 3 + Tailwind CSS</p>
+        <div class="flex items-center gap-3 flex-wrap">
+          <p>© {{ siteConfig.site_name || 'Minimal Nav' }}. Designed for high efficiency & restrained elegance.</p>
+          <a
+            v-if="siteConfig.icp_beian"
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="hover:underline hover:text-foreground transition-colors font-mono"
+          >
+            {{ siteConfig.icp_beian }}
+          </a>
+        </div>
+        <p class="font-mono text-xs text-muted-foreground/70">Vue 3 + Serverless + Tailwind CSS</p>
       </div>
     </footer>
 
