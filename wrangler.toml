@@ -7,7 +7,7 @@ pages_build_output_dir = "frontend/dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "minimal-nav-db"
-database_id = "xxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" # 部署时请替换为通过 `wrangler d1 create minimal-nav-db` 生成的实际 ID
+database_id = "c6246e3b-bb49-41b4-b4d6-b872bd221e52"
 
 [vars]
 ADMIN_PASSWORD = "admin123"
