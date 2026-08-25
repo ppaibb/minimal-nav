@@ -70,7 +70,10 @@ INSERT OR REPLACE INTO links (id, title, url, category, icon, sort_order) VALUES
 
 -- 5. 文档与办公
 (27, '语雀', 'https://www.yuque.com/', '文档与办公', 'https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https%3A%2F%2Fyuque.com&size=64', 27),
-(28, 'Sublime Text', 'https://www.sublimetext.com/', '文档与办公', 'https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https%3A%2F%2Fsublimetext.com&size=64', 28);
+(28, 'Sublime Text', 'https://www.sublimetext.com/', '文档与办公', 'https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https%3A%2F%2Fsublimetext.com&size=64', 28),
+
+-- 6. Docker 镜像加速
+(29, '自建镜像加速节点', 'https://cr.gua.cx/', 'Docker 镜像加速', 'https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https%3A%2F%2Fcr.gua.cx&size=64', 29);
 
 INSERT OR IGNORE INTO announcements (id, content, is_active) VALUES 
 (1, '团队常用开发、协作、数据库、IDE 与 AI 助手导航已整理上线。', 1),
