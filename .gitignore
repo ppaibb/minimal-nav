@@ -1,6 +1,8 @@
 # Binaries for programs and plugins
 *.exe
 *.exe~
+minimal-nav
+minimal-nav-*
 *.dll
 *.so
 *.dylib
